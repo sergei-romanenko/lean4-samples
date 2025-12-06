@@ -1,0 +1,10 @@
+name = "lean4-samples"
+version = "0.1.0"
+defaultTargets = ["lean4-samples"]
+
+[[lean_lib]]
+name = "Lean4Samples"
+
+[[lean_exe]]
+name = "lean4-samples"
+root = "Main"
