@@ -66,10 +66,10 @@ def code123'' : Code 0 1 :=
   ((Code.push 3).seq
   (Code.add.seq Code.add)))
 
-infixr:40 " ;; " => Code.seq
+infixr:40 "; " => Code.seq
 
 def code123''' : Code 0 1 :=
-  .push 1 ;; .push 2 ;; .push 3 ;; .add ;; .add
+  .push 1; .push 2; .push 3; .add; .add
 
 -- State
 
@@ -85,19 +85,19 @@ def st123 : Stack 3 :=
 def st123' : Stack 3 :=
   .cons 1 (.cons 2 (.cons 3 .nil))
 
-infixr:67 " ::: " => Stack.cons
+infixr:67 " :: " => Stack.cons
 
 def st123'' : Stack 3 :=
-  1 ::: 2 ::: 3 ::: .nil
+  1 :: 2 :: 3 :: .nil
 
-#check List
+#check Stack
 
 -- Interpreter
 
 def exec {i j : Nat} : (c : Code i j) -> (s : Stack i) -> Stack j
-  | c1 ;; c2, s => exec c2 (exec c1 s)
-  | .push n, s => n ::: s
-  | .add, n2 ::: (n1 ::: s) => (n1 + n2) ::: s
+  | c1; c2, s => exec c2 (exec c1 s)
+  | .push n, s => n :: s
+  | .add, n2 :: (n1 :: s) => (n1 + n2) :: s
 
 #check exec
 #eval exec code123 Stack.nil
@@ -106,7 +106,7 @@ def exec {i j : Nat} : (c : Code i j) -> (s : Stack i) -> Stack j
 
 def compile {i : Nat} : (t : Tm) -> Code i (i + 1)
   | .val n => .push n
-  | .add t1 t2 => (compile t1 ;; compile t2) ;; .add
+  | .add t1 t2 => (compile t1; compile t2); .add
 
 #check (compile tm123 : Code 0 1)
 #eval (compile tm123 : Code 0 1)
@@ -115,64 +115,64 @@ def compile {i : Nat} : (t : Tm) -> Code i (i + 1)
 -- `seq` is associative with respect to `exec`.
 
 def seq_assoc {i0 i1 i2 i3 : Nat} {c1 : Code i0 i1} {c2 : Code i1 i2} {c3 : Code i2 i3} {s} :
-    exec ((c1 ;; c2) ;; c3) s = exec (c1 ;; (c2 ;; c3)) s :=
-  calc exec ((c1 ;; c2) ;; c3) s
-  _ = exec c3 (exec (c1 ;; c2) s)
+    exec ((c1; c2); c3) s = exec (c1; (c2; c3)) s :=
+  calc exec ((c1; c2); c3) s
+  _ = exec c3 (exec (c1; c2) s)
       := by rfl
   _ = exec c3 (exec c2 (exec c1 s))
       := by rfl
-  _ = exec (c2 ;; c3) (exec c1 s)
+  _ = exec (c2; c3) (exec c1 s)
       := by rfl
-  _ = exec (c1 ;; (c2 ;; c3)) s
+  _ = exec (c1; (c2; c3)) s
       := by rfl
 
 -- Here is another proof, which is shorter, but is more mysterious.
 
 def seq_assoc' :
-    exec ((c1 ;; c2) ;; c3) s = exec (c1 ;; (c2 ;; c3)) s :=
+    exec ((c1; c2); c3) s = exec (c1; (c2; c3)) s :=
   .refl (exec c3 (exec c2 (exec c1 s)))
 
 -- `compile` is correct with respect to `exec`.
 
 def correct {i} (t : Tm) (s : Stack i) :
-    exec (compile t) s = eval t ::: s :=
+    exec (compile t) s = eval t :: s :=
   match t with
   | .val n =>
       calc exec (compile (.val n)) s
       _ = exec (.push n) s
           := by rw [compile]
-      _ = n ::: s
+      _ = n :: s
           := by rw [exec]
-      _ = eval (.val n) ::: s
+      _ = eval (.val n) :: s
           := by rw [eval]
   | .add t1 t2 =>
       calc exec (compile (t1.add t2)) s
-      _ = exec ((compile t1 ;; compile t2) ;; .add) s
+      _ = exec ((compile t1; compile t2); .add) s
           := by rw [compile]
-      _ = exec .add (exec (compile t1 ;; compile t2) s)
+      _ = exec .add (exec (compile t1; compile t2) s)
           := by rw [exec]
       _ = exec .add (exec (compile t2) (exec (compile t1) s))
           := by rw [exec]
-      _ = exec .add (eval t2 ::: exec (compile t1) s)
+      _ = exec .add (eval t2 :: exec (compile t1) s)
           := by rw [correct]
-      _ = exec .add (eval t2 ::: eval t1 ::: s)
+      _ = exec .add (eval t2 :: eval t1 :: s)
           := by rw [correct]
-      _ = (eval t1 + eval t2) ::: s
+      _ = (eval t1 + eval t2) :: s
           := by rw [exec]
-      _ = eval (t1.add t2) ::: s
+      _ = eval (t1.add t2) :: s
           := by rw [eval]
 
 
 -- Here is another proof, which is shorter, but is more mysterious.
 
 def correct' {i} (t : Tm) (s : Stack i) :
-    exec (compile t) s = eval t ::: s :=
+    exec (compile t) s = eval t :: s :=
   match t with
   | .val n =>
-      show exec (compile (.val n)) s = eval (.val n) ::: s from
+      show exec (compile (.val n)) s = eval (.val n) :: s from
         rfl
   | .add t1 t2 =>
-      show (exec (compile (.add t1 t2)) s = eval (.add t1 t2) ::: s) from
+      show (exec (compile (.add t1 t2)) s = eval (.add t1 t2) :: s) from
         by simp [eval, compile, exec, correct']
 
 /-
@@ -191,32 +191,32 @@ vanishes at compile time, yielding a plain A-returning function.
 --
 
 def ex_code {i} (t : Tm) :
-    {c : Code i (i + 1) // (s : Stack i) -> exec c s = eval t ::: s} :=
+    {c : Code i (i + 1) // (s : Stack i) -> exec c s = eval t :: s} :=
   match t with
   | .val n =>
       ⟨.push n, fun s =>
         calc exec (.push n) s
-        _ = n ::: s
+        _ = n :: s
             := by rw [exec]
-        _ = eval (.val n) ::: s
+        _ = eval (.val n) :: s
             := by rw [eval]
        ⟩
   | .add t1 t2 =>
       let ⟨c1, p1⟩ := ex_code (i := i) t1
       let ⟨c2, p2⟩ := ex_code (i := i + 1) t2
-      ⟨(c1 ;; c2) ;; .add, fun s =>
-        calc exec ((c1 ;; c2) ;; .add) s
-        _ = exec .add (exec (c1 ;; c2) s)
+      ⟨(c1; c2); .add, fun s =>
+        calc exec ((c1; c2); .add) s
+        _ = exec .add (exec (c1; c2) s)
             := by rw [exec]
         _ = (exec .add (exec c2 (exec c1 s)))
             := by rw [exec]
-        _ =(exec .add (exec c2 (eval t1 ::: s)))
+        _ =(exec .add (exec c2 (eval t1 :: s)))
             := by rw [p1]
-        _ =(exec .add (eval t2 ::: eval t1 ::: s))
+        _ =(exec .add (eval t2 :: eval t1 :: s))
             := by rw [p2]
-        _ = (eval t1 + eval t2) ::: s
+        _ = (eval t1 + eval t2) :: s
             := by rw [exec]
-        _ = eval (.add t1 t2) ::: s
+        _ = eval (.add t1 t2) :: s
             := by rw [eval]
       ⟩
 
@@ -233,9 +233,9 @@ def correct'' {i : Nat} : (t : Tm) ->
       let ⟨c1, eq1⟩ := ex_code (i := i) t1
       let ⟨c2, eq2⟩ := ex_code (i := i + 1) t1
       calc (ex_code (.add t1 t2)).val
-      _ = (((ex_code t1).val ;; (ex_code t2).val) ;; Code.add)
+      _ = (((ex_code t1).val; (ex_code t2).val); Code.add)
         := by rw [ex_code];
-      _ = ((compile t1 ;; compile t2) ;; Code.add)
+      _ = ((compile t1; compile t2); Code.add)
         := by rw [correct'', correct'']
       _ = compile (.add t1 t2)
         := by rw [<- compile]
@@ -266,9 +266,9 @@ def prog123''' : Prog 0 1 :=
 def p_exec {i j} : (p : Prog i j) -> (s : Stack i) -> Stack j
   | .nil, s => s
   | (.push n # p), s =>
-      p_exec p (n ::: s)
-  | (.add # p), (n2 ::: n1 ::: s) =>
-      p_exec p ((n1 + n2) ::: s)
+      p_exec p (n :: s)
+  | (.add # p), (n2 :: n1 :: s) =>
+      p_exec p ((n1 + n2) :: s)
 
 -- Compiler
 
@@ -280,7 +280,7 @@ def p_compile {i j} : (t : Tm) -> (p : Prog (i + 1) j) -> Prog i j
 -- Code -> Prog
 
 def flatten {i j k} : (c : Code i j) -> (p : Prog j k) -> Prog i k
-  | (c1 ;; c2), p => flatten c1 (flatten c2 p)
+  | (c1; c2), p => flatten c1 (flatten c2 p)
   | (.push n), p => .push n # p
   | .add, p => .add # p
 
@@ -288,24 +288,24 @@ def flatten {i j k} : (c : Code i j) -> (p : Prog j k) -> Prog i k
 
 def flatten_correct' {i j k} : (c : Code i j) -> (p : Prog j k) -> (s : Stack i) ->
     p_exec p (exec c s) = p_exec (flatten c p) s
-  | c1 ;; c2, p, s =>
-      calc p_exec p (exec (c1 ;; c2) s)
+  | c1; c2, p, s =>
+      calc p_exec p (exec (c1; c2) s)
       _ = p_exec p (exec c2 (exec c1 s))
         := by rw [exec]
       _ = p_exec (flatten c2 p) (exec c1 s)
         := by rw [flatten_correct']
       _ = p_exec (flatten c1 (flatten c2 p)) s
         := by rw [flatten_correct']
-      _ = p_exec (flatten (c1 ;; c2) p) s
+      _ = p_exec (flatten (c1; c2) p) s
         := by rw [<- flatten]
   | .push n, p, s =>
       calc p_exec p (exec (.push n) s)
       _ = p_exec (flatten (.push n) p) s
-        := .refl (p_exec p (n ::: s))
-  | .add, p, n2 ::: n1 ::: s =>
-      calc p_exec p (exec .add (n2 ::: n1 ::: s))
-      _ = p_exec (flatten .add p) (n2 ::: n1 ::: s)
-        := .refl (p_exec p ((n1 + n2) ::: s))
+        := .refl (p_exec p (n :: s))
+  | .add, p, n2 :: n1 :: s =>
+      calc p_exec p (exec .add (n2 :: n1 :: s))
+      _ = p_exec (flatten .add p) (n2 :: n1 :: s)
+        := .refl (p_exec p ((n1 + n2) :: s))
 
 def flatten_correct {i j} (c : Code i j) (s : Stack i) :
     exec c s = p_exec (flatten c .nil) s :=
