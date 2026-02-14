@@ -1,1 +1,3 @@
 /.lake
+*.idr
+*.agda
