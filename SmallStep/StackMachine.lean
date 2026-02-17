@@ -11,6 +11,8 @@ This (slightly modified) code is from
   http://fplab.bitbucket.org/posts/2007-08-07-proof-by-smugness.html
 -/
 
+import Batteries
+
 --
 -- A Toy Language
 --
@@ -33,7 +35,7 @@ def eval : Tm -> Nat
   | .add t1 t2 => eval t1 + eval t2
 
 #check eval tm123
-#eval eval tm123
+#guard eval tm123 == 6
 
 --
 -- Virtual machine
@@ -45,13 +47,16 @@ def eval : Tm -> Nat
 -- in order to ensure stack safety.
 
 inductive Code : Nat -> Nat -> Type where
-  | seq  : {i j k : Nat} -> (c1 : Code i j) -> (c2 : Code j k) -> Code i k
-  | push : {i : Nat} -> (n : Nat) -> Code i (i + 1)
-  | add  : {i : Nat} -> Code (i + 2) (i + 1)
+  | seq  {i j k} : (c1 : Code i j) -> (c2 : Code j k) -> Code i k
+  | push {i} : (n : Nat) -> Code i (i + 1)
+  | add  {i} : Code (i + 2) (i + 1)
+deriving BEq
 
 def code123 : Code 0 1 :=
   Code.seq (Code.push 1) (Code.seq (Code.push 2) (Code.seq (Code.push 3) (
   Code.seq (Code.add) (Code.add))))
+
+#eval code123
 
 def code123' : Code 0 1 :=
   .seq (.push 1) $
@@ -71,24 +76,43 @@ infixr:40 "; " => Code.seq
 def code123''' : Code 0 1 :=
   .push 1; .push 2; .push 3; .add; .add
 
+open Code in
+def code123'''' : Code 0 1 :=
+  push 1; push 2; push 3; add; add
+
+/-
+def tsCode {i j} : Code i j -> String := fun
+  | .seq c1 c2 => s!"{tsCode c1}; {tsCode c2}"
+  | .push n => s!"push {n}"
+  | .add => "add"
+
+instance {i j} : ToString (Code i j) where
+  toString := tsCode
+
+#eval code123
+ -/
+
 -- State
 
 inductive Stack : Nat -> Type where
-  | nil : Stack 0
-  | cons : {k : Nat} -> (hd : Nat) -> (tl : Stack k) -> Stack (k + 1)
+  | ε : Stack 0
+  | cons {k} : (hd : Nat) -> (tl : Stack k) -> Stack (k + 1)
+deriving BEq
 
 #check Stack 10
 
 def st123 : Stack 3 :=
-  Stack.cons 1 (Stack.cons 2 (Stack.cons 3 Stack.nil))
+  Stack.cons 1 (Stack.cons 2 (Stack.cons 3 Stack.ε))
 
 def st123' : Stack 3 :=
-  .cons 1 (.cons 2 (.cons 3 .nil))
+  .cons 1 (.cons 2 (.cons 3 .ε))
+
+open Stack (ε)
 
 infixr:67 " :: " => Stack.cons
 
 def st123'' : Stack 3 :=
-  1 :: 2 :: 3 :: .nil
+  1 :: 2 :: 3 :: ε
 
 #check Stack
 
@@ -100,21 +124,24 @@ def exec {i j : Nat} : (c : Code i j) -> (s : Stack i) -> Stack j
   | .add, n2 :: (n1 :: s) => (n1 + n2) :: s
 
 #check exec
-#eval exec code123 Stack.nil
+#eval exec code123 ε
+#guard exec code123 ε == 6 :: ε
 
 -- Compiler
 
-def compile {i : Nat} : (t : Tm) -> Code i (i + 1)
+def compile {i} : (t : Tm) -> Code i (i + 1)
   | .val n => .push n
   | .add t1 t2 => (compile t1; compile t2); .add
 
 #check (compile tm123 : Code 0 1)
 #eval (compile tm123 : Code 0 1)
-
+#guard (compile tm123 : Code 0 1) ==
+  (.push 1; ((.push 2; .push 3); .add)).seq .add
 
 -- `seq` is associative with respect to `exec`.
 
-def seq_assoc {i0 i1 i2 i3 : Nat} {c1 : Code i0 i1} {c2 : Code i1 i2} {c3 : Code i2 i3} {s} :
+def seq_assoc {i0 i1 i2 i3 : Nat}
+        {c1 : Code i0 i1} {c2 : Code i1 i2} {c3 : Code i2 i3} {s} :
     exec ((c1; c2); c3) s = exec (c1; (c2; c3)) s :=
   calc exec ((c1; c2); c3) s
   _ = exec c3 (exec (c1; c2) s)
@@ -173,6 +200,7 @@ def correct' {i} (t : Tm) (s : Stack i) :
         rfl
   | .add t1 t2 =>
       show (exec (compile (.add t1 t2)) s = eval (.add t1 t2) :: s) from
+        -- by rw [eval, compile, exec, exec, correct', correct', exec]
         by simp [eval, compile, exec, correct']
 
 /-
@@ -247,42 +275,44 @@ def correct'' {i : Nat} : (t : Tm) ->
 -- Instructions
 
 inductive Inst : (i j : Nat) -> Type where
-  | push : {i : Nat} -> (n : Nat) -> Inst i (i + 1)
-  | add  : {i : Nat} -> Inst (i + 2) (i + 1)
+  | push {i} : (n : Nat) -> Inst i (i + 1)
+  | add  {i} : Inst (i + 2) (i + 1)
 
 -- Programs
 
 inductive Prog : (i j : Nat) -> Type where
-  | nil  : {i : Nat} -> Prog i i
-  | cons : {i j k : Nat} -> (c : Inst i j) -> (p : Prog j k) -> Prog i k
+  | ε {i} : Prog i i
+  | cons {i j k} : (c : Inst i j) -> (p : Prog j k) -> Prog i k
 
-infixr:40 " # " => Prog.cons
+open Prog (ε)
+
+infixr:40 "; " => Prog.cons
 
 def prog123''' : Prog 0 1 :=
-  .push 1 # .push 2 # .push 3 # .add # .add # .nil
+  .push 1; .push 2; .push 3; .add; .add; ε
 
 -- Interpreter
 
 def p_exec {i j} : (p : Prog i j) -> (s : Stack i) -> Stack j
-  | .nil, s => s
-  | (.push n # p), s =>
+  | .ε, s => s
+  | .push n; p, s =>
       p_exec p (n :: s)
-  | (.add # p), (n2 :: n1 :: s) =>
+  | .add; p, (n2 :: n1 :: s) =>
       p_exec p ((n1 + n2) :: s)
 
 -- Compiler
 
 def p_compile {i j} : (t : Tm) -> (p : Prog (i + 1) j) -> Prog i j
-  | .val n, p => .push n # p
+  | .val n, p => .push n; p
   | .add t1 t2, p =>
-      p_compile t1 (p_compile t2 (.add # p))
+      p_compile t1 (p_compile t2 (.add; p))
 
 -- Code -> Prog
 
 def flatten {i j k} : (c : Code i j) -> (p : Prog j k) -> Prog i k
   | (c1; c2), p => flatten c1 (flatten c2 p)
-  | (.push n), p => .push n # p
-  | .add, p => .add # p
+  | (.push n), p => .push n; p
+  | .add, p => .add; p
 
 -- `flatten` is correct.
 
@@ -308,8 +338,8 @@ def flatten_correct' {i j k} : (c : Code i j) -> (p : Prog j k) -> (s : Stack i)
         := .refl (p_exec p ((n1 + n2) :: s))
 
 def flatten_correct {i j} (c : Code i j) (s : Stack i) :
-    exec c s = p_exec (flatten c .nil) s :=
-  flatten_correct' c .nil s
+    exec c s = p_exec (flatten c ε) s :=
+  flatten_correct' c ε s
 
 -- compile ~ p_compile
 
@@ -318,14 +348,14 @@ def compile_p_compile {i j} : (t : Tm) -> (p : Prog (i + 1) j) ->
   | .val n, p =>
     calc flatten (compile (.val n)) p
     _ = p_compile (.val n) p
-      := .refl (.push n # p)
+      := .refl (.push n; p)
   | .add t1 t2, p =>
     calc flatten (compile (.add t1 t2)) p
-    _ = flatten (compile t1) (flatten (compile t2) (.add # p))
+    _ = flatten (compile t1) (flatten (compile t2) (.add; p))
       := by rw [compile, flatten, flatten, flatten]
-    _ = (p_compile t1 (flatten (compile t2) (.add # p)))
+    _ = (p_compile t1 (flatten (compile t2) (.add; p)))
       := by rw [compile_p_compile]
-    _ = (p_compile t1 (p_compile t2 (.add # p)))
+    _ = (p_compile t1 (p_compile t2 (.add; p)))
       := by rw [compile_p_compile]
     _ = p_compile (.add t1 t2) p
       := by rw [<- p_compile]
