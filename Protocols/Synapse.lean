@@ -28,36 +28,24 @@ open Reachable Unsafe Config
 
 -- Any reachable state is covered by a configuration
 
-def inclusion: {s : State} -> Reachable s -> Config s := by
-  intro s r
+theorem  inclusion {s : State} (r : Reachable s) : Config s := by
   cases r with
-  | start => exact c2
-  | t1 _ => exact c2
-  | t2 _ => exact c1
-  | t3 _ => exact c1
-
+  | start | t1 _ => exact c2
+  | t2 _ | t3 _ => exact c1
 
 -- Any state, that is covered by a configuration, is not unsafe.
 
-def safety : {s : State} -> Config s -> Unsafe s -> False := by
-  intro s c u
-  cases c with
-  | c1 => cases u
-  | c2 => cases u
+theorem  safety {s : State} (c : Config s) (u : Unsafe s) : False := by
+  cases c <;> cases u
 
 -- Any reachable state is not unsafe.
 
-def valid : {s : State} -> Reachable s -> Unsafe s -> False :=
+theorem  valid : {s : State} -> Reachable s -> Unsafe s -> False :=
   safety ∘ inclusion
 
 --
 -- A direct proof, which is mysterious...
 --
 
-def valid' : {s : State} -> Reachable s -> Unsafe s -> False := by
-  intro s r u
-  induction r with
-  | start => cases u
-  | t1 _ _ => cases u
-  | t2 _ _ => cases u
-  | t3 _ _ => cases u
+theorem valid' {s : State} (r : Reachable s) (u : Unsafe s) : False := by
+  cases r <;> cases u

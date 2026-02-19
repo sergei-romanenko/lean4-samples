@@ -37,31 +37,21 @@ open Reachable Unsafe Config
 
 -- Any reachable state is covered by a configuration
 
-def inclusion: {s : State} -> Reachable s -> Config s := by
-  intro s r
+theorem inclusion {s : State} (r : Reachable s) : Config s := by
   induction r with
-  | start => exact c3
-  | t1 _ _ => exact c3
-  | t2 r' ih =>
-      cases ih with
-      | c1 => simp; exact c2
-  | t3 _ _ => exact c1
-  | t4 _ _ => exact c1
-  done
+  | start  | t1 _ _ => exact c3
+  | t3 _ _ | t4 _ _ => exact c1
+  | t2 _ ih =>
+      cases ih; simp; exact c2
 
 -- Any state, that is covered by a configuration, is not unsafe.
 
-def safety: {s : State} -> Config s -> Unsafe s -> False := by
-  intro s c u
-  cases c with
-  | c1 => cases u
-  | c2 => cases u
-  | c3 => cases u
-  done
+theorem safety {s : State} (c : Config s) (u : Unsafe s) : False := by
+  cases c <;> cases u
 
 -- Any reachable state is not unsafe.
 
-def valid : {s : State} -> Reachable s -> Unsafe s -> False :=
+theorem valid : {s : State} -> Reachable s -> Unsafe s -> False :=
   safety ∘ inclusion
 
 --
@@ -79,30 +69,11 @@ valid' (t2 r) u4 = valid' r u2
 valid' (t2 r) u5 = valid' r u5
  -/
 
-/-
--- Lean 4: "fail to show termination for valid'".
-
-def valid': {s : State} -> (r : Reachable s) -> (u : Unsafe s) -> False := by
-  intro s r u
-  cases u with
-  | u1 =>
-      cases r with
-      | t2 r' =>
-          cases r' with
-          | t2 r'' => exact valid' r'' u5
-  | u2 =>
-      cases r with
-      | t2 r' => exact valid' r' u5
-  | u3 =>
-      cases r with
-      | t2 r' =>
-          cases r' with
-          | t2 r'' =>
-              exact valid' r'' u5
-  | u4 =>
-      cases r with
-      | t2 r' => exact (valid' r' u2)
-  | u5 =>
-      cases r with
-      | t2 r' => exact (valid r' u5)
-  -/
+theorem valid'{s : State} (r : Reachable s) (u : Unsafe s) : False := by
+  induction r with
+  | t2 r' h' =>
+      cases r' with
+      | t2 _ =>
+          cases u <;> (apply h'; first | exact u3 | exact u2)
+      | _ => cases u
+  | _ => cases u
