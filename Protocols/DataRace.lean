@@ -49,9 +49,6 @@ theorem valid {s : State} : Reachable s -> Unsafe s -> False :=
 -- A direct proof, which is mysterious...
 --
 
-theorem valid' : {s : State} -> Reachable s -> Unsafe s -> False := by
-  intro s r u
-  induction r with
-  | t3 _ ih | t4 _ ih =>
-      cases u; exact (ih u1)
-  | _ => cases u
+theorem valid' {s : State} (r : Reachable s) (u : Unsafe s) : False := by
+  induction r <;>
+    (cases u; try (rename_i r ih; exact (ih u1)))

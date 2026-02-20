@@ -72,8 +72,8 @@ valid' (t2 r) u5 = valid' r u5
 theorem valid'{s : State} (r : Reachable s) (u : Unsafe s) : False := by
   induction r with
   | t2 r' h' =>
+      apply h'
       cases r' with
-      | t2 _ =>
-          cases u <;> (apply h'; first | exact u3 | exact u2)
+      | t2 _ => cases u <;> exact u2
       | _ => cases u
   | _ => cases u

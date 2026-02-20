@@ -38,6 +38,16 @@ theorem even_mod2eq0 (n : Nat) : Even n -> n % 2 = 0
       have : Even k -> k % 2 = 0 := even_mod2eq0 k
       exact this ev_k
 
+theorem even_mod2eq0' (n : Nat) : Even n -> n % 2 = 0 := by
+  intro ev_n
+  induction ev_n with
+  | @even0 => show 0 % 2 = 0; rfl
+  | @even2 k ev_k ih =>
+      show (k + 2) % 2 = 0
+      simp
+      show k % 2 = 0
+      exact ih
+
 def ev2n : (n : Nat) → Even (n + n)
   | .zero => even0
   | .succ n =>
