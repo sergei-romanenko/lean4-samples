@@ -27,8 +27,8 @@ def DecidableEqBool : DecidableEq Bool := by
   match a, b with
     | false, false => exact isTrue rfl
     | false, true => exact isFalse (Bool.noConfusion)
-    | true , false => exact isFalse (by intro h; cases h)
-    | true , true => exact isTrue rfl
+    | true , false => apply isFalse; intro h; contradiction
+    | true , true => apply isTrue; rfl
 
 end NoConfusion
 
