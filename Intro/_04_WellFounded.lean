@@ -53,6 +53,11 @@ def div2 : Nat -> Nat
   | 1 => 0
   | n + 2 => div2 n + 1
 
+@[simp] theorem div2.r1 : div2 0 = 0 := rfl
+@[simp] theorem div2.r2 : div2 1 = 0 := rfl
+@[simp] theorem div2.r3 : div2 (n + 2) = div2 n + 1 := rfl
+
+@[simp]
 def div2le (n : Nat) : div2 n ≤ n := by
   cases n with
   | zero => simp [div2]
@@ -60,7 +65,7 @@ def div2le (n : Nat) : div2 n ≤ n := by
       cases n' with
       | zero => simp [div2]
       | succ n'' =>
-          simp [div2]
+          simp
           have : div2 n'' ≤ n'' := div2le n''
           omega
 
@@ -68,12 +73,11 @@ def log2a : (n : Nat) -> Nat
   | 0 => 0
   | 1 => 0
   | n' + 2 =>
-      have : div2 n' ≤ n' := div2le n'
       log2a (div2 n' + 1) + 1
 
 #guard [0, 1, 2, 3, 4].map log2a == [0, 0, 1, 1, 2]
 example : [0, 1, 2, 3, 4].map log2a = [0, 0, 1, 1, 2] :=
-  by simp [log2a, div2]
+  by simp [log2a]
 
 --
 -- Using the accessibility of all Nat's.
@@ -97,7 +101,6 @@ def log2w (n : Nat) : Nat :=
   have : Acc Nat.lt n := Nat.lt_wfRel.wf.apply n
   log2w' n (Nat.lt_wfRel.wf.apply n)
 
-#eval [0, 1, 2, 3, 4].map log2w  = [0, 0, 1, 1, 2]
 #guard [0, 1, 2, 3, 4].map log2w  = [0, 0, 1, 1, 2]
 
 --
@@ -207,12 +210,10 @@ inductive Log2b : Nat -> Type where
   | l2 {n} : Log2b (div2 n + 1) -> Log2b (n + 2)
 open Log2b
 
-
 def sizeOfLog2b {n} : Log2b n -> Nat
   | l0 => 0
   | l1 => 1
   | l2 h => sizeOfLog2b h + 1
-
 
 /-
 def sizeOfLog2b {n} : Log2b n -> Nat := by
@@ -235,7 +236,6 @@ decreasing_by
 
 instance {n} : SizeOf (Log2b n) where
   sizeOf := sizeOfLog2b
-
 
 def log2b' : (n : Nat) -> (acc : Log2b n) -> Nat := fun
   | .(0), l0  => 0
@@ -282,24 +282,89 @@ open OrdNat
 --  y < x ⇒ y a1 ... an < x
 
 def addOrd : (n m : OrdNat) -> OrdNat
-  | oz, m => m
-  | os n, m => os (addOrd n m)
-  | lim f, m => lim (fun u => addOrd (f u) m)
+  | n, oz => n
+  | n, os m => os (addOrd n m)
+  | n, lim f => lim (fun u => addOrd n (f u))
 
 def lim0 : OrdNat := lim (fun _ => oz)
 
 example : addOrd lim0 oz = lim (fun _ => oz) := by
   simp [lim0, addOrd]
 
-example (m : OrdNat) : addOrd lim0 m = lim (fun _ => m) := by
-  simp [lim0, addOrd]
+example (n : OrdNat) : addOrd n lim0 = lim (fun _ => n) := by
+  rw [lim0, addOrd, addOrd]
 
-def natToOrdNat : (n : Nat) -> OrdNat := fun
+def OrdNat.ofNat : Nat -> OrdNat
   | 0 => oz
-  | n + 1 => os (natToOrdNat n)
+  | n + 1 => os (OrdNat.ofNat n)
 
-def branch : OrdNat := lim (fun u => natToOrdNat u)
+instance (n : Nat) : OfNat OrdNat n where
+  ofNat := OrdNat.ofNat n
+
+example : addOrd 1 2 = oz.os.os.os :=
+  rfl
+
+@[simp]
+theorem addOrd_nz {n} : addOrd n oz = n := by
+  rfl
+
+@[simp]
+theorem addOrd_ns {n m} : addOrd n (os m) = os (addOrd n m) := by
+  rfl
+
+@[simp]
+theorem addOrd_nl {n f} : addOrd n (lim f) = lim (fun u => addOrd n (f u)) := by
+  rfl
+
+@[simp]
+theorem addOrd_zn {n} : addOrd oz n = n := by
+  induction n with
+  | oz => simp
+  | os n ih => simp [ih]
+  | lim f ih => simp; apply funext; exact ih
+
+/-
+theorem addOrd_sm {n m} : addOrd (os n) m = os (addOrd n m) := by
+  induction m with
+  | oz => simp
+  | os m' ih => simp [ih]
+  | lim f ih =>
+      rw [addOrd_nl, addOrd_nl]
+      -- simp [ih]
+      done
+
+
+theorem addOrd_comm {n m} : addOrd n m = addOrd m n := by
+  induction m with
+  | oz => simp
+  | os m' ih =>
+      simp
+      done
+  | lim f ih => done
+  done
+ -/
+
+def branch : OrdNat := lim (fun u => ofNat u)
 
 example : addOrd branch branch =
-            lim (fun u => addOrd (natToOrdNat u) (lim natToOrdNat)) := by
-  simp [branch, addOrd]
+            (lim fun u => addOrd (lim ofNat) (ofNat u)) := by
+  simp [branch]
+
+namespace SizeOfOrdNat
+
+/-
+def addOrd : (n m : OrdNat) -> OrdNat
+  | oz, m => m
+  | os n, m => os (addOrd n m)
+  | lim f, m => lim (fun u => addOrd (f u) m)
+termination_by n m => (n, m)
+decreasing_by
+  · apply Prod.Lex.left
+    simp
+  · apply Prod.Lex.left
+    have : sizeOf (f u) < sizeOf (lim f) := sorry
+    simp
+    done
+ -/
+
+end SizeOfOrdNat

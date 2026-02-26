@@ -303,7 +303,7 @@ def not_odd_dbl : (n : Nat) -> Odd (n + n) -> False
       apply not_odd_dbl k
       apply even_s
       apply odd_s
-      show Odd ((k+k).succ.succ)
+      show Odd ((k + k).succ.succ)
       rw [<- Nat.add_succ k k, <- Nat.succ_add]
       exact h
 
