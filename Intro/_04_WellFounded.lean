@@ -69,6 +69,10 @@ def div2le (n : Nat) : div2 n ≤ n := by
           have : div2 n'' ≤ n'' := div2le n''
           omega
 
+@[simp]
+def div2lt (n : Nat) : div2 n < n + 1 := by
+  exact Nat.lt_succ_of_le (div2le n)
+
 def log2a : (n : Nat) -> Nat
   | 0 => 0
   | 1 => 0
@@ -102,6 +106,29 @@ def log2w (n : Nat) : Nat :=
   log2w' n (Nat.lt_wfRel.wf.apply n)
 
 #guard [0, 1, 2, 3, 4].map log2w  = [0, 0, 1, 1, 2]
+
+-- Now let us try to define a well-founded relation...
+
+-- def Subrelation {α : Sort u} (q r : α → α → Prop) :=
+--   ∀ {x y}, q x y → r x y
+
+@[simp]
+def Div2LtRel (x y : Nat) : Prop := x = div2 y ∧ x < y
+
+theorem SrDiv2 : Subrelation Div2LtRel Nat.lt := by
+  simp [Subrelation, Div2LtRel]
+
+instance instWFDiv2LtRel : WellFoundedRelation Nat where
+  rel := Div2LtRel
+  wf := Subrelation.wf SrDiv2 Nat.lt_wfRel.wf
+
+def log2wf : (n : Nat) -> Nat
+  | 0 => 0
+  | 1 => 0
+  | n' + 2 =>
+      log2wf (div2 n' + 1) + 1
+termination_by n => n
+decreasing_by simp
 
 --
 -- Sized
@@ -368,3 +395,4 @@ decreasing_by
  -/
 
 end SizeOfOrdNat
+
