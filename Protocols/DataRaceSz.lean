@@ -7,12 +7,24 @@ import Aesop
 
 abbrev State := Nat × Nat × Nat
 
-inductive Reachable : State -> Prop where
+inductive Reachable : State -> Type where
   | start {out} : Reachable (out, 0, 0)
   | t1 {out} : Reachable (out + 1, 0, 0) -> Reachable (out, 1, 0)
   | t2 {out scs} : Reachable (out + 1, 0, scs)  -> Reachable (out, 0, scs + 1)
   | t3 {out cs scs} : Reachable (out, cs + 1, scs) -> Reachable (out + 1, cs, scs)
   | t4 {out cs scs} : Reachable (out, cs, scs + 1) -> Reachable (out + 1, cs, scs)
+
+@[simp]
+def szReachable {s : State} : Reachable s -> Nat := fun
+  | .start => 0
+  | .t1 r => szReachable r + 1
+  | .t2 r => szReachable r + 1
+  | .t3 r => szReachable r + 1
+  | .t4 r => szReachable r + 1
+
+@[simp]
+instance instSzReachable {s} : SizeOf (Reachable s) where
+  sizeOf := szReachable
 
 @[aesop unsafe [cases]]
 inductive Unsafe : State -> Prop where
@@ -54,3 +66,19 @@ theorem valid {s : State} : Reachable s -> Unsafe s -> False :=
 theorem valid' {s : State} (r : Reachable s) (u : Unsafe s) : False := by
   induction r <;> cases u <;>
     · rename_i r' h'; apply h'; constructor
+
+theorem valid'' {s : State} (r : Reachable s) (u : Unsafe s) : False :=
+  match r with
+  | start => nomatch u
+  | t1 _ => nomatch u
+  | t2 _ => nomatch u
+  | t3 r' =>
+      match u with
+      | u1 => valid'' r' u1
+  | t4 r' =>
+      match u with
+      | .u1 => valid'' r' u1
+-- termination_by sizeOf r
+-- decreasing_by
+--   · simp
+--   · simp

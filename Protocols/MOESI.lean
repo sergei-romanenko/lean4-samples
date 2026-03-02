@@ -3,6 +3,7 @@
 --
 
 import Batteries
+import Aesop
 
 abbrev State := Nat × Nat × Nat × Nat × Nat
 
@@ -17,6 +18,7 @@ inductive Reachable : State -> Prop where
   | t4 {i m s e o'} : Reachable (i + 1, m, s, e, o') ->
       Reachable (i + m + s + e + o', 0, 0, 1, 0)
 
+@[aesop safe [cases]]
 inductive Unsafe : State -> Prop where
   | u1  {i m s e o'} : Unsafe (i, m + 1, s + 1, e, o')
   | u2  {i m s e o'} : Unsafe (i, m + 1, s, e + 1, o')
@@ -24,6 +26,7 @@ inductive Unsafe : State -> Prop where
   | u4  {i m s e o'} : Unsafe (i, m + 2, s, e, o')
   | u5  {i m s e o'} : Unsafe (i, m, s, e + 2, o')
 
+@[aesop safe [constructors, cases]]
 inductive Config : State -> Prop where
   | c1 : Config (_, 0, 0, 1, 0)
   | c2 : Config (_, 1, 0, 0, 0)
@@ -38,16 +41,15 @@ open Reachable Unsafe Config
 -- Any reachable state is covered by a configuration
 
 theorem inclusion {s : State} (r : Reachable s) : Config s := by
-  induction r with
-  | start  | t1 _ _ => exact c3
-  | t3 _ _ | t4 _ _ => exact c1
-  | t2 _ ih =>
-      cases ih; simp; exact c2
+  -- induction r <;>
+  --   first | constructor | rename_i ih; cases ih; constructor
+  induction r <;> aesop
 
 -- Any state, that is covered by a configuration, is not unsafe.
 
 theorem safety {s : State} (c : Config s) (u : Unsafe s) : False := by
-  cases c <;> cases u
+  -- cases c <;> cases u
+  aesop
 
 -- Any reachable state is not unsafe.
 
@@ -77,3 +79,6 @@ theorem valid'{s : State} (r : Reachable s) (u : Unsafe s) : False := by
       | t2 _ => cases u <;> exact u2
       | _ => cases u
   | _ => cases u
+
+theorem valid''{s : State} (r : Reachable s) (u : Unsafe s) : False := by
+  induction r <;> cases u <;> rename_i r' h' <;> cases r' <;> exact h' u2
