@@ -85,13 +85,6 @@ inductive Bar : WSeq -> Prop where
   | later {ws} : ((w : Word) -> Bar (w :: ws)) -> Bar ws
 open Bar
 
--- abbrev WBar (ws : WSeq) := (w : Word) -> Bar (w :: ws)
-
-inductive IsLater {xs} : Bar xs -> Prop where
-  | isLater {xs} : IsLater (later xs)
-open IsLater
-
-
 -- Consequently,
 --   Bar []
 -- means that every infinite sequence must be good,
@@ -107,7 +100,7 @@ def «::*» : (a : Letter) -> (ws : WSeq) -> WSeq
   | _, [] => []
   | a, (w :: ws) => (a :: w) :: («::*» a ws)
 
-infixr:67 " ::* " => «::*»
+infix:67 " ::* " => «::*»
 
 namespace Berghofer's_T
 
@@ -236,60 +229,45 @@ def good_t1 {xs ys zs} : T2 xs ys zs -> Good ys -> Good zs := fun
 -- Proof idea: Induction on Bar xs and Bar ys,
 -- then case distinction on the first letter of the first word following zs.
 
-namespace Take1
+-- This is not accepted by Lean 4 (due to termination problems)...
 
-def tt_bb {xs ys zs} (t : T2 xs ys zs) : (b_x : Bar xs) -> (b_y : Bar ys) -> Bar zs := fun
+/-
+def tt_bb {xs ys zs} (bxs : Bar xs) (bys : Bar ys) (t : T2 xs ys zs) : Bar zs :=
+  match bxs, bys with
   | now nx, _ => now (good_t0 t nx)
   | later lx, now ny => now (good_t1 t ny)
   | later lx, later ly => later $
       show (w : Word) -> Bar (w :: zs) from
       fun
       | [] => bar_w_empty zs
-      | l0 :: w => tt_bb (step0 t) (lx w) (later ly)
-      | l1 :: w => tt_bb (step1 t) (later lx) (ly w)
-termination_by b_x b_y => (b_x, b_y)
--- decreasing_by simp_wf; done
+      | l0 :: w =>
+          @tt_bb (w :: xs) ys ((l0 :: w) :: zs)
+            (lx w) (later ly) (step0 t)
+      | l1 :: w =>
+          @tt_bb xs (w :: ys) ((l1 :: w) :: zs)
+            (later lx) (ly w) (step1 t)
+ -/
 
-end Take1
+-- This is OK. Explicit recursion has been replaced with `induction`.
 
-namespace Take2
-
-def tt_bb {xs ys} (b_x : Bar xs) (b_y : Bar ys) {zs} (t : T2 xs ys zs) : Bar zs :=
-  match b_x, b_y with
-  | now nx, _ => now (good_t0 t nx)
-  | later lx, now ny => now (good_t1 t ny)
-  | later lx, later ly => later $
-      show (w : Word) -> Bar (w :: zs) from
-      fun
-      | [] => bar_w_empty zs
-      | l0 :: w => tt_bb (lx w) (later ly) (step0 t)
-      | l1 :: w => tt_bb  (later lx) (ly w) (step1 t)
-termination_by (b_x, b_y)
--- decreasing_by simp_wf; done
-
-end Take2
-
-namespace Take3
-
-def tt_bb : (xsb : {xs // Bar xs}) -> (ysb : {ys // Bar ys})->
-      (zs : WSeq) -> T2 xsb.val ysb.val zs -> Bar zs := fun
-  | ⟨ xs, now nx ⟩, ⟨ ys, bys ⟩, zs, t => now (good_t0 t nx)
-  | ⟨ xs, later lx ⟩, ⟨ ys, now ny ⟩, zs, t => now (good_t1 t ny)
-  | ⟨ xs, later lx ⟩, ⟨ ys, later ly ⟩, zs, t => later $
-      show (w : Word) -> Bar (w :: zs) from
-      fun
-      | [] => bar_w_empty zs
-      | l0 :: w' =>
-          tt_bb ⟨_, lx w'⟩ ⟨ys, later ly⟩ ((l0 :: w') :: zs) t.step0
-      | l1 :: w' =>
-          tt_bb  ⟨xs, later lx⟩ ⟨_, ly w'⟩ ((l1 :: w') :: zs) t.step1
--- termination_by xsb ysb => (xsb.snd, ysb.snd)
--- termination_by xsb ysb => (xsb.property, ysb.property)
--- decreasing_by sorry
-
-end Take3
-
-axiom tt_bb {xs ys} (b_x : Bar xs) (b_y : Bar ys) {zs} (t : T2 xs ys zs) : Bar zs
+def tt_bb {xs ys zs} (bxs : Bar xs) (bys : Bar ys) (t : T2 xs ys zs) : Bar zs := by
+  induction bxs generalizing ys zs bys with
+  | now nx => exact now $ good_t0 t nx
+  | @later xs' lx hx =>
+      induction bys generalizing xs zs with
+      | now ny => exact now (good_t1 t ny)
+      | @later ys' ly hy =>
+          apply later
+          show (v : Word) -> Bar (v :: zs)
+          intro v
+          match v with
+          | [] => exact bar_w_empty zs
+          | l0 :: w =>
+              show Bar ((l0 :: w) :: zs)
+              apply hx w (ys := ys') (later ly) (step0 t)
+          | l1 :: w =>
+              show Bar ((l1 :: w) :: zs)
+              apply hy w (xs := xs') (step1 t)
 
 --
 -- prop3 : Lifting to longer words
@@ -297,35 +275,28 @@ axiom tt_bb {xs ys} (b_x : Bar xs) (b_y : Bar ys) {zs} (t : T2 xs ys zs) : Bar z
 -- Proof idea: Induction on Bar ws, then induction on first word following ws
 --
 
-namespace bar_lift1
-
-mutual
-
-def bar_lift (b ws : _) : Bar ws -> Bar (b ::* ws) := fun
-  | now n => now $ good_drop n
-  | later l => later $ later_lift b ws (later l) ⟨l, rfl⟩
--- termination_by bw => bw
-
-def later_lift (b ws : _) (bw : Bar ws) (lbw : ∃ l, bw = later l) (w : Word) :
-      Bar (w :: (b ::* ws)) :=
-  show Bar (w :: b ::* ws) from
-  let l := lbw.choose
-  match b with
-  | l0 => match w with
-      | [] => bar_w_empty (l0 ::* ws)
-      | (l0 :: w) => bar_lift l0 (w :: ws) (l w) -- ===
-      | (l1 :: w) => tt_bb (later l) (later_lift l0 ws (later l) lbw w) init1
-  | l1 => match w with
-      | [] => bar_w_empty (l1 ::* ws)
-      | (l0 :: w) => tt_bb  (later_lift l1 ws (later l) lbw w) (later l) init0
-      | (l1 :: w) => bar_lift l1 (w :: ws) (l w) -- ===
--- termination_by w
-
-end
-
-end bar_lift1
-
-axiom bar_lift (b ws : _) : Bar ws -> Bar (b ::* ws)
+def bar_lift (c ws : _) (b : Bar ws) : Bar (c ::* ws) := by
+  induction b with
+  | @now ws n => exact now $ good_drop n
+  | @later ws' l ihl =>
+      show Bar (c ::* ws')
+      apply later; intro v
+      induction v with
+      | nil => exact bar_w_empty (c ::* ws')
+      | cons c' w ih =>
+          match c' with
+          | l0 =>
+              match c with
+              | l0 => exact ihl w
+              | l1 =>
+                  show Bar ((l0 :: w) :: (l1 ::* ws'))
+                  exact tt_bb ih (later l) init0
+          | l1 =>
+              match c with
+              | l0 =>
+                  show Bar ((l1 :: w) :: l0 ::* ws')
+                  exact tt_bb (later l) ih init1
+              | l1 => exact ihl w
 
 --
 -- higman: Main theorem
@@ -351,23 +322,22 @@ def higman : (ws : WSeq) -> Bar ws
 -- good-prefix-lemma
 --
 
-inductive Prefix (f : Nat -> Word) : (Nat × WSeq) -> Prop where
-  | PZ : Prefix f (0, [])
-  | PS {i xs} : Prefix f (i, xs) -> Prefix f (i + 1, f i :: xs)
+inductive Prefix (f : Nat -> Word) : Nat -> WSeq -> Prop where
+  | pz : Prefix f 0 []
+  | ps {i xs} : Prefix f i xs -> Prefix f (i + 1) (f i :: xs)
+open Prefix
 
 def good_prefix' (f : Nat -> Word)
-    (s : _) (p : Prefix f s) : Bar (s.snd) ->
-    {s' // Prefix f s' ∧ Good (s'.snd)}
-  | now n =>
-      {s // (p ∧ n)}
-  | later l =>
-      let i := s.fst
-      let ws := s.snd
-      good_prefix' f (i + 1, f i :: ws) (.PS p) (l (f i))
-
+    (i ws : _) (p : Prefix f i ws) (b : Bar ws) :
+    (∃ i' xs', Prefix f i' xs' ∧ Good xs') := by
+  induction b generalizing i with
+  | @now ws' n =>
+      exact ⟨i, ws', p, n⟩
+  | later l ih =>
+      apply ih (f i) (i + 1) (ps p)
 
 -- Finding good prefixes of infinite sequences
 
 def good_prefix (f : Nat -> Word) :
-    {s // Prefix f s ∧ Good (s.snd)} :=
-  good_prefix' f (0, []) .PZ bar_empty
+      (∃ i xs, Prefix f i xs ∧ Good xs) :=
+  good_prefix' f 0 [] pz bar_empty
