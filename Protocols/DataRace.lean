@@ -33,7 +33,7 @@ open Reachable Unsafe Config
 
 theorem inclusion {s : State} (r : Reachable s) : Config s := by
   induction r <;>
-  -- first | constructor | rename_i r' h'; cases h'; constructor
+  -- first | constructor | rename_i h; cases h; constructor
   aesop
 
 -- Any state, that is covered by a configuration, is not unsafe.
@@ -53,4 +53,4 @@ theorem valid {s : State} : Reachable s -> Unsafe s -> False :=
 
 theorem valid' {s : State} (r : Reachable s) (u : Unsafe s) : False := by
   induction r <;> cases u <;>
-    · rename_i r' h'; apply h'; constructor
+    · rename_i h; apply h; constructor

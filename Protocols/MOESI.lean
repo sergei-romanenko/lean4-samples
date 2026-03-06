@@ -80,5 +80,5 @@ theorem valid'{s : State} (r : Reachable s) (u : Unsafe s) : False := by
       | _ => cases u
   | _ => cases u
 
-theorem valid''{s : State} (r : Reachable s) (u : Unsafe s) : False := by
+theorem valid'' {s : State} (r : Reachable s) (u : Unsafe s) : False := by
   induction r <;> cases u <;> rename_i r' h' <;> cases r' <;> exact h' u2

@@ -7,6 +7,7 @@
  -/
 
 import Batteries
+import Aesop
 
 -- Mathematical induction.
 -- Augustus de Morgan (1838).
@@ -137,14 +138,18 @@ def neq_n_sn : (n : Nat) -> n = n + 1 -> False
 
 end neq_n_succ_n_3
 
-namespace primNat
+--
+-- Even & Odd
+--
 
 mutual
 
+  @[aesop safe [constructors, cases]]
   inductive Even : Nat -> Prop where
     | ev0 : Even 0
     | ev1 {n} : Odd n -> Even (n + 1)
 
+  @[aesop safe [constructors, cases]]
   inductive Odd : Nat -> Prop where
     | odd {n} : Even n -> Odd (n + 1)
 
@@ -152,24 +157,52 @@ end
 
 open Even Odd
 
-def odd_1 : Odd 1 := odd ev0
+def odd_1 : Odd 1 := by
+  -- aesop
+  apply odd
+  apply ev0
 
-def even_2 : Even 2 := ev1 (odd ev0)
+def even_2 : Even 2 := by
+  -- aesop
+  apply ev1
+  apply odd
+  apply ev0
 
 -- Inversion.
 
+-- @[aesop unsafe [apply]]
 def odd_z : Odd 0 -> False := by
   intro h; cases h
 
+-- @[aesop unsafe [apply]]
 def even_s {n : Nat} : Even (n + 1) -> Odd n
   | ev1 odd_n => odd_n
 
+-- @[aesop unsafe [apply]]
 def odd_s {n : Nat} : Odd (n + 1) -> Even n
   | odd even_n => even_n
 
-namespace Even_dbl_1
+def not_odd_0 (h : Odd 0) : False := by
+  -- aesop
+  obtain @⟨n, a⟩ := h
 
-  -- "Ordinary" induction.
+def not_even_1 (h : Even 1) : False := by
+  -- aesop
+  rcases h with ⟨⟩ | @⟨n, a⟩
+  obtain @⟨n, a_1⟩ := a
+
+def not_odd_2 (h : Odd 2) : False := by
+  -- aesop
+  obtain @⟨n, a⟩ := h
+  simp_all only [Nat.zero_add]
+  rcases a with ⟨⟩ | @⟨n, a_1⟩
+  obtain @⟨n, a⟩ := a_1
+
+
+-- "Ordinary" induction.
+-- (n : Nat) -> Even (n + n)
+
+namespace Even_dbl_1
 
 def even_dbl : (n : Nat) -> Even (n + n)
   | 0 =>
@@ -189,8 +222,6 @@ end Even_dbl_1
 
 namespace Even_dbl_2
 
-  -- "Ordinary" induction.
-
 def even_dbl : (n : Nat) -> Even (n + n)
   | 0 =>
       ev0 |>
@@ -203,8 +234,6 @@ def even_dbl : (n : Nat) -> Even (n + n)
 end Even_dbl_2
 
 namespace Even_dbl_3
-
-  -- "Ordinary" induction.
 
 def even_dbl : (n : Nat) -> Even (n + n)
   | 0 =>
@@ -223,8 +252,6 @@ end Even_dbl_3
 
 namespace Even_dbl_4
 
-  -- "Ordinary" induction.
-
 def even_dbl : (n : Nat) -> Even (n + n)
   | 0 => by
       simp; exact ev0
@@ -239,9 +266,27 @@ def even_dbl : (n : Nat) -> Even (n + n)
 
 end Even_dbl_4
 
-namespace Odd_dbl_1
+namespace Even_dbl_5
 
-  -- "Infinite descent" in style of Fermat.
+def even_dbl (n : Nat) : Even (n + n) := by
+  induction n with
+  | zero =>
+      -- aesop
+      rw [Nat.add_zero]
+      exact ev0
+  | succ k h =>
+      rw [Nat.succ_add]
+      -- aesop
+      apply ev1
+      apply odd
+      exact h
+
+end Even_dbl_5
+
+-- "Infinite descent" in style of Fermat.
+-- (n : Nat) -> Odd (n + n) -> False
+
+namespace Odd_dbl_1
 
 def not_odd_dbl : (n : Nat) -> Odd (n + n) -> False
   | 0, h => by
@@ -261,8 +306,6 @@ end Odd_dbl_1
 
 namespace Odd_dbl_2
 
-  -- "Infinite descent" in style of Fermat.
-
 def not_odd_dbl : (n : Nat) -> Odd (n + n) -> False
   | 0, h =>
       have : Odd (0 + 0) := h
@@ -280,8 +323,6 @@ end Odd_dbl_2
 
 namespace Odd_dbl_3
 
-  -- "Infinite descent" in style of Fermat.
-
 def not_odd_dbl : (n : Nat) -> Odd (n + n) -> False
   | 0, h => nomatch (h : Odd (0 + 0))
   | k + 1, h =>
@@ -293,8 +334,6 @@ def not_odd_dbl : (n : Nat) -> Odd (n + n) -> False
 end Odd_dbl_3
 
 namespace Odd_dbl_4
-
-  -- "Infinite descent" in style of Fermat.
 
 def not_odd_dbl : (n : Nat) -> Odd (n + n) -> False
   | 0, h => by
@@ -309,9 +348,24 @@ def not_odd_dbl : (n : Nat) -> Odd (n + n) -> False
 
 end Odd_dbl_4
 
+namespace Odd_dbl_5
+
+def not_odd_dbl (n : Nat) (h : Odd (n + n)) : False := by
+  cases n with
+  | zero => nomatch (h : Odd (0 + 0))
+  | succ k =>
+      apply not_odd_dbl k
+      sorry
+      -- aesop
+      -- done
+
+end Odd_dbl_5
+
+-- (n : Nat) -> Even n ∨ Odd n
+
 namespace EvenOrOdd_1
 
-def  even'odd : (n : Nat) -> Even n ∨ Odd n := fun
+def  even'odd : (n : Nat) -> Even n ∨ Odd n
   | .zero => Or.inl ev0
   | .succ 0 => Or.inr $ odd ev0
   | .succ (.succ k) =>
@@ -323,7 +377,7 @@ end EvenOrOdd_1
 
 namespace EvenOrOdd_2
 
-def  even'odd : (n : Nat) -> Even n ∨ Odd n := fun
+def  even'odd : (n : Nat) -> Even n ∨ Odd n
   | .zero => Or.inl ev0
   | .succ 0 => Or.inr $ odd ev0
   | .succ (.succ k) =>
@@ -333,7 +387,7 @@ end EvenOrOdd_2
 
 namespace EvenOrOdd_3
 
-def even'odd : (n : Nat) -> Even n ∨ Odd n := fun
+def even'odd : (n : Nat) -> Even n ∨ Odd n
   | .zero => Or.inl ev0
   | .succ k =>
       Or.elim (even'odd k) (Or.inr ∘ odd) (Or.inl ∘ ev1)
@@ -363,9 +417,10 @@ def even'odd : (n : Nat) -> Even n ∨ Odd n :=
 
 end EvenOrOdd_5
 
-namespace Even_Odd_1
+-- "Infinite descent" in style of Fermat.
+-- (m : Nat) -> (Even m ∧ Odd m) -> False
 
-  -- "Infinite descent" in style of Fermat.
+namespace Even_Odd_1
 
 def not_even_odd : (m : Nat) -> (Even m ∧ Odd m) -> False := fun
   | .zero, h =>
