@@ -112,7 +112,10 @@ def log2w (n : Nat) : Nat :=
 -- def Subrelation {α : Sort u} (q r : α → α → Prop) :=
 --   ∀ {x y}, q x y → r x y
 
-@[simp]
+/-
+namespace Div2LtRel
+
+-- @[simp]
 def Div2LtRel (x y : Nat) : Prop := x = div2 y ∧ x < y
 
 theorem SrDiv2 : Subrelation Div2LtRel Nat.lt := by
@@ -128,7 +131,10 @@ def log2wf : (n : Nat) -> Nat
   | n' + 2 =>
       log2wf (div2 n' + 1) + 1
 termination_by n => n
-decreasing_by simp
+decreasing_by simp [Div2LtRel]
+
+end Div2LtRel
+ -/
 
 --
 -- Sized
@@ -293,16 +299,16 @@ def log2b (n : Nat) : Nat :=
 #guard [0, 1, 2, 3, 4].map log2b  == [0, 0, 1, 1, 2]
 
 example : [0, 1, 2, 3, 4].map log2b  = [0, 0, 1, 1, 2] := by
-  simp [log2b, log2b', all_log2b, div2]
+  simp [log2b, log2b', all_log2b]
 
 --
 -- Transfinite addition of ordinal numbers
 --
 
 inductive OrdNat : Type where
-  | oz : OrdNat
+  | oz  : OrdNat
   | os  : (n : OrdNat) -> OrdNat
-  | lim  : (f : Nat -> OrdNat) -> OrdNat
+  | lim : (f : Nat -> OrdNat) -> OrdNat
 open OrdNat
 
 -- Here we use the application rule:
@@ -311,15 +317,32 @@ open OrdNat
 def addOrd : (n m : OrdNat) -> OrdNat
   | n, oz => n
   | n, os m => os (addOrd n m)
-  | n, lim f => lim (fun u => addOrd n (f u))
+  | n, lim f => lim fun u => addOrd n (f u)
 
 def lim0 : OrdNat := lim (fun _ => oz)
+def lim1 := lim (fun _ => lim fun _ => oz.os)
 
 example : addOrd lim0 oz = lim (fun _ => oz) := by
-  simp [lim0, addOrd]
+  rfl
 
 example (n : OrdNat) : addOrd n lim0 = lim (fun _ => n) := by
-  rw [lim0, addOrd, addOrd]
+  rfl
+
+namespace AddOrd1
+
+def addOrd : OrdNat -> OrdNat -> OrdNat := by
+  intro n m
+  cases m with
+  | oz => exact n
+  | os m => exact os (addOrd n m)
+  | lim f =>
+      apply lim
+      intro u
+      apply addOrd
+      · exact n
+      · exact f u
+
+end AddOrd1
 
 def OrdNat.ofNat : Nat -> OrdNat
   | 0 => oz
@@ -328,7 +351,7 @@ def OrdNat.ofNat : Nat -> OrdNat
 instance (n : Nat) : OfNat OrdNat n where
   ofNat := OrdNat.ofNat n
 
-example : addOrd 1 2 = oz.os.os.os :=
+example : addOrd 1 2 = 3 :=
   rfl
 
 @[simp]
@@ -343,56 +366,49 @@ theorem addOrd_ns {n m} : addOrd n (os m) = os (addOrd n m) := by
 theorem addOrd_nl {n f} : addOrd n (lim f) = lim (fun u => addOrd n (f u)) := by
   rfl
 
-@[simp]
-theorem addOrd_zn {n} : addOrd oz n = n := by
-  induction n with
-  | oz => simp
-  | os n ih => simp [ih]
-  | lim f ih => simp; apply funext; exact ih
-
-/-
-theorem addOrd_sm {n m} : addOrd (os n) m = os (addOrd n m) := by
-  induction m with
-  | oz => simp
-  | os m' ih => simp [ih]
-  | lim f ih =>
-      rw [addOrd_nl, addOrd_nl]
-      -- simp [ih]
-      done
-
-
-theorem addOrd_comm {n m} : addOrd n m = addOrd m n := by
-  induction m with
-  | oz => simp
-  | os m' ih =>
-      simp
-      done
-  | lim f ih => done
-  done
- -/
-
 def branch : OrdNat := lim (fun u => ofNat u)
 
 example : addOrd branch branch =
             (lim fun u => addOrd (lim ofNat) (ofNat u)) := by
   simp [branch]
 
-namespace SizeOfOrdNat
+-- In transfinite arithmetic, specifically for ordinal numbers
+-- like ω, addition and multiplication are not commutative!
+
+@[simp]
+theorem addOrd_zn {n} : addOrd oz n = n := by
+  induction n with
+  | oz =>
+      show addOrd oz oz = oz
+      simp
+  | os n' ih =>
+      show addOrd oz (os n') = os n'
+      -- ih : addOrd oz n' = n'
+      simp [ih]
+  | lim f ih =>
+      show addOrd oz (lim f) = lim f
+      simp
+      show (fun u => addOrd oz (f u)) = f
+      apply funext
+      show ∀ (x : Nat), addOrd oz (f x) = f x
+      -- ih : ∀ (a : Nat), addOrd oz (f a) = f a
+      exact ih
 
 /-
-def addOrd : (n m : OrdNat) -> OrdNat
-  | oz, m => m
-  | os n, m => os (addOrd n m)
-  | lim f, m => lim (fun u => addOrd (f u) m)
-termination_by n m => (n, m)
-decreasing_by
-  · apply Prod.Lex.left
-    simp
-  · apply Prod.Lex.left
-    have : sizeOf (f u) < sizeOf (lim f) := sorry
-    simp
-    done
+theorem addOrd_sm {n m} : addOrd (os n) m = os (addOrd n m) := by
+  induction m generalizing n with
+  | oz => rfl
+  | os n' ih =>
+      -- simp [ih]
+      rw [addOrd_ns, addOrd_ns, ih]
+  | lim f ih =>
+      rw [addOrd_nl, addOrd_nl]
+      show (lim fun u => addOrd n.os (f u)) = (lim fun u => addOrd n (f u)).os
+      conv =>
+        lhs
+        congr
+        intro u
+        rw [ih]
+      show (lim fun u => (addOrd n (f u)).os) = (lim fun u => addOrd n (f u)).os
+      sorry
  -/
-
-end SizeOfOrdNat
-

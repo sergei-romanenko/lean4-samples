@@ -7,10 +7,21 @@ theorem ind_nat {P : Nat -> Prop}
     (h0 : P 0) (ih : (n : Nat) -> P n → P (n + 1)) : (n : Nat) -> P n
   | 0 =>
       show P 0 from h0
-  | n + 1 =>
-      show P (n + 1) from
-      have hpn : P n := ind_nat h0 ih n
-      ih n hpn
+  | n' + 1 =>
+      show P (n' + 1) from
+      have hpn : P n' := ind_nat h0 ih n'
+      ih n' hpn
+
+theorem ind_nat_by {P : Nat -> Prop}
+    (h0 : P 0) (ih : (n : Nat) -> P n → P (n + 1)) : (n : Nat) -> P n := by
+  intro n
+  induction n with
+  | zero =>
+      show P 0
+      exact h0
+  | succ n' h =>
+      show P (n' + 1)
+      exact ih n' h
 
 -- Induction by derivation
 
@@ -148,17 +159,17 @@ mutual
   def even_even {m n} : Even m -> Even n -> Even (m + n)
     | em, @even0 => em
     | em, @even1 n' on' => by
+        show Even (m + (n' + 1))
         apply even1
-        apply even_odd
-        · exact em
-        · exact on'
+        show Odd (m + n')
+        apply even_odd em on'
 
   def even_odd {m n} : Even m -> Odd n -> Odd (m + n)
     | em, @odd1 n' en' => by
+        show Odd (m + (n' + 1))
         apply odd1
-        apply even_even
-        · exact em
-        · exact en'
+        show Even (m + n')
+        apply even_even em en'
 
 end
 

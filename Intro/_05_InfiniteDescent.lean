@@ -51,16 +51,16 @@ def descNat_by  {p : Nat -> Prop}
   | succ n ih => exact ih (down n pn)
   done
 
-namespace plus_zero_n_1
+namespace plus_lz_1
 
 def plus_lz : (n : Nat) -> 0 + n = n :=
   indNat
     (rfl : 0 + 0 = 0)
     (fun _ => congrArg (· + 1) : (m : Nat) -> 0 + m = m -> 0 + (m + 1) = m + 1)
 
-end plus_zero_n_1
+end plus_lz_1
 
-namespace plus_zero_n_2
+namespace plus_lz_2
 
 def plus_lz : (n : Nat) -> 0 + n = n := fun
   | 0 =>
@@ -73,9 +73,9 @@ def plus_lz : (n : Nat) -> 0 + n = n := fun
       show 0 + k = k from
         plus_lz k
 
-end plus_zero_n_2
+end plus_lz_2
 
-namespace plus_zero_n_3
+namespace plus_lz_3
 
 def plus_lz : (n : Nat) -> 0 + n = n := fun
   | 0 => by
@@ -87,9 +87,9 @@ def plus_lz : (n : Nat) -> 0 + n = n := fun
       have : 0 + (k + 1) = k + 1   := this
       exact this
 
-end plus_zero_n_3
+end plus_lz_3
 
-namespace plus_zero_n_4
+namespace plus_lz_4
 
 def plus_lz : (n : Nat) -> 0 + n = n
   | 0 =>
@@ -99,7 +99,7 @@ def plus_lz : (n : Nat) -> 0 + n = n
       _ = (0 + k) + 1  := rfl
       _ = k + 1        := congrArg (· + 1) (plus_lz k)
 
-end plus_zero_n_4
+end plus_lz_4
 
 namespace neq_n_succ_n_1
 
@@ -351,13 +351,15 @@ end Odd_dbl_4
 namespace Odd_dbl_5
 
 def not_odd_dbl (n : Nat) (h : Odd (n + n)) : False := by
-  cases n with
+  induction n with
   | zero => nomatch (h : Odd (0 + 0))
-  | succ k =>
-      apply not_odd_dbl k
-      sorry
-      -- aesop
-      -- done
+  | succ k ih =>
+      apply ih
+      apply even_s
+      apply odd_s
+      show Odd ((k + k).succ.succ)
+      rw [<- Nat.add_succ k k, <- Nat.succ_add]
+      exact h
 
 end Odd_dbl_5
 
