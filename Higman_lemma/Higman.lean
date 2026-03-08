@@ -30,6 +30,7 @@ abbrev Word := List Letter
 -- For example,
 --   l1 :: l0 :: l1 :: [] ⊴ l0 :: l1 :: l0 :: l0 :: l1 :: []
 
+@[aesop unsafe [constructors, cases, apply]]
 inductive «<<» : (v w : Word) -> Prop where
   | empty : «<<» [] []
   | drop {v w a}  : «<<» v w -> «<<» v (a :: w)
@@ -38,14 +39,20 @@ open «<<»
 
 infix:50 " << " => «<<»
 
-def test1 : l1 :: l0 :: l1 :: [] << l0 :: l1 :: l0 :: l0 :: l1 :: [] :=
+example : l1 :: l0 :: l1 :: [] << l0 :: l1 :: l0 :: l0 :: l1 :: [] :=
+  -- aesop
   drop $ keep $ drop $ keep $ keep empty
 
 -- [] is embeddable in any word.
 
-def emb_empty : (w : Word) -> [] << w
+
+@[simp]
+theorem emb_empty : (w : Word) -> [] << w
   | [] => empty
   | _ :: ws => drop $ emb_empty ws
+
+example : (w : Word) -> [] << w := by
+  intro w; induction w <;> aesop
 
 -- We represent a finite sequence w_0, w_1, ... , w_n as
 --   w_n :: ... :: w_1 :: w_0 :: []
@@ -57,6 +64,7 @@ abbrev WSeq := List Word
 --   ws *<< v
 -- means that ws contains a word w, such that w << v .
 
+@[aesop unsafe [constructors, cases]]
 inductive «*<<» : (ws : WSeq) -> (v : Word) -> Prop where
   | eHere  {w ws v} : w << v -> «*<<» (w :: ws) v
   | eThere {w ws v} : «*<<» ws v -> «*<<» (w :: ws) v
@@ -68,6 +76,7 @@ infix:50 " *<< " => «*<<»
 -- or contains a word which can be embedded into the word
 -- occurring at the head position of the list.
 
+@[aesop unsafe [constructors, cases]]
 inductive Good : (ws : WSeq) -> Prop where
   | here  {w ws} : ws *<< w -> Good (w :: ws)
   | there {w ws} : Good ws -> Good (w :: ws)
@@ -80,8 +89,9 @@ open Good
 -- (1) the list of words ws is already good, or
 -- (2) successively adding words will turn it into a good list.
 
+@[aesop unsafe [constructors, cases]]
 inductive Bar : WSeq -> Prop where
-  | now   {ws}   : Good ws -> Bar ws
+  | now   {ws} : Good ws -> Bar ws
   | later {ws} : ((w : Word) -> Bar (w :: ws)) -> Bar ws
 open Bar
 
@@ -101,6 +111,13 @@ def «::*» : (a : Letter) -> (ws : WSeq) -> WSeq
   | a, (w :: ws) => (a :: w) :: («::*» a ws)
 
 infix:67 " ::* " => «::*»
+
+@[simp]
+theorem «::*-[]» {a} : a ::* [] = [] :=rfl
+
+@[simp]
+theorem «::*-::» {a w ws} : a ::* (w :: ws) = (a :: w) :: («::*» a ws) :=rfl
+
 
 namespace Berghofer's_T
 
@@ -126,6 +143,7 @@ end Berghofer's_T
 -- So, we can simplify the proof by directly defining a relation T2, such that
 -- `T2 xs ys zs` is equivalent to `(T a xs zs, T a xs zs)`.
 
+@[aesop unsafe [constructors, cases]]
 inductive T2 : (zs xs ys : WSeq) -> Prop where
   | init0 {w ys} : T2 (w :: (l1 ::* ys)) ys ((l0 :: w) :: (l1 ::* ys))
   | init1 {w xs} : T2 xs (w :: (l0 ::* xs)) ((l1 :: w) :: (l0 ::* xs))
@@ -146,8 +164,8 @@ open T2
 -- by appending any word.
 --
 
-def bar_w_empty (ws : WSeq) : Bar ([] :: ws) :=
-  -- later (emb_empty · |> here |> here |> now)
+@[simp]
+theorem bar_w_empty (ws : WSeq) : Bar ([] :: ws) :=
   later $
   show (w : Word) -> Bar (w :: [] :: ws) from
   fun w =>
@@ -157,17 +175,35 @@ def bar_w_empty (ws : WSeq) : Bar ([] :: ws) :=
   have : Bar (w :: [] :: ws) := now this
   this
 
+example (ws : WSeq) : Bar ([] :: ws) :=
+  later (emb_empty · |> eHere |> here |> now)
+
+example (ws : WSeq) : Bar ([] :: ws) :=
+  by aesop
+
 -- Lemmas. w *<< v ... -> (a :: w) *<< v ...
 
-def s_emb_drop {ws v a} : ws *<< v -> ws *<< a :: v
+example {ws v a} : ws *<< v -> ws *<< a :: v
+  := by intro h; induction h <;> aesop
+
+@[simp]
+theorem s_emb_drop {ws v a} : ws *<< v -> ws *<< a :: v
   | eHere w_emb_v => eHere (drop w_emb_v)
   | eThere ws_s_emb_v => eThere (s_emb_drop ws_s_emb_v)
 
-def s_emb_keep {ws v a} : ws *<< v -> (a ::* ws) *<< a :: v := fun
+example {ws v a} : ws *<< v -> (a ::* ws) *<< a :: v
+  := by intro h; induction h <;> aesop
+
+@[simp]
+theorem s_emb_keep {ws v a} : ws *<< v -> (a ::* ws) *<< a :: v
   | eHere w_emb_v => eHere (keep w_emb_v)
   | eThere ws_s_emb_v => eThere (s_emb_keep ws_s_emb_v)
 
-def t2_semb_drop0 {xs ys zs w} : T2 xs ys zs -> xs *<< w -> zs *<< l0 :: w
+example {xs ys zs w} : T2 xs ys zs -> xs *<< w -> zs *<< l0 :: w
+  := by intro ht hw; induction ht <;> (try simp_all) <;> cases hw <;> aesop
+
+@[simp]
+theorem t2_semb_drop0 {xs ys zs w} : T2 xs ys zs -> xs *<< w -> zs *<< l0 :: w
   | init0 => fun
     | eHere emb_w => eHere (keep emb_w)
     | eThere semb_w => eThere (s_emb_drop semb_w)
@@ -179,7 +215,11 @@ def t2_semb_drop0 {xs ys zs w} : T2 xs ys zs -> xs *<< w -> zs *<< l0 :: w
   | step1 t2 => fun
     | semb_w => eThere (t2_semb_drop0 t2 semb_w)
 
-def t2_semb_drop1 {xs ys zs w} : T2 xs ys zs -> ys *<< w -> zs *<< l1 :: w
+example {xs ys zs w} : T2 xs ys zs -> ys *<< w -> zs *<< l1 :: w
+  := by intro ht hw; induction ht <;> (try simp_all) <;> cases hw <;> aesop
+
+@[simp]
+theorem t2_semb_drop1 {xs ys zs w} : T2 xs ys zs -> ys *<< w -> zs *<< l1 :: w
   | init0 => fun
     | semb_w => eThere (s_emb_keep semb_w)
   | init1 => fun
@@ -193,13 +233,23 @@ def t2_semb_drop1 {xs ys zs w} : T2 xs ys zs -> ys *<< w -> zs *<< l1 :: w
 
 -- Lemmas. Good ... -> Good ...
 
-def good_drop {ws a} : Good ws -> Good (a ::* ws) := fun
+example {ws a} : Good ws -> Good (a ::* ws)
+  := by intro gx; induction gx <;> aesop
+
+@[simp]
+theorem good_drop {ws a} : Good ws -> Good (a ::* ws)
   | here ws_s_emb_w =>
       here (s_emb_keep ws_s_emb_w)
   | there good_ws =>
       there (good_drop good_ws)
 
-def good_t0 {xs ys zs} : T2 xs ys zs -> Good xs -> Good zs := fun
+-- set_option trace.aesop true
+
+example {xs ys zs} : T2 xs ys zs -> Good xs -> Good zs := by
+  intro t gx; induction t <;> cases gx <;>
+  first | aesop | apply here; expose_names; exact t2_semb_drop0 h h_1
+
+theorem good_t0 {xs ys zs} : T2 xs ys zs -> Good xs -> Good zs
   | init0 => fun
     | here semb_w => here (s_emb_drop semb_w)
     | there good_l1ys => there good_l1ys
@@ -211,7 +261,11 @@ def good_t0 {xs ys zs} : T2 xs ys zs -> Good xs -> Good zs := fun
   | step1 t2 => fun
     | gx => there (good_t0 t2 gx)
 
-def good_t1 {xs ys zs} : T2 xs ys zs -> Good ys -> Good zs := fun
+example {xs ys zs} : T2 xs ys zs -> Good ys -> Good zs := by
+  intro t gy; induction t <;> cases gy <;>
+  first | aesop | apply here; expose_names; exact t2_semb_drop1 h h_1
+
+theorem good_t1 {xs ys zs} : T2 xs ys zs -> Good ys -> Good zs
   | init0 => fun
     | gy => there (good_drop gy)
   | init1 => fun
@@ -232,7 +286,7 @@ def good_t1 {xs ys zs} : T2 xs ys zs -> Good ys -> Good zs := fun
 -- This is not accepted by Lean 4 (due to termination problems)...
 
 /-
-def tt_bb {xs ys zs} (bxs : Bar xs) (bys : Bar ys) (t : T2 xs ys zs) : Bar zs :=
+theorem tt_bb {xs ys zs} (bxs : Bar xs) (bys : Bar ys) (t : T2 xs ys zs) : Bar zs :=
   match bxs, bys with
   | now nx, _ => now (good_t0 t nx)
   | later lx, now ny => now (good_t1 t ny)
@@ -250,7 +304,7 @@ def tt_bb {xs ys zs} (bxs : Bar xs) (bys : Bar ys) (t : T2 xs ys zs) : Bar zs :=
 
 -- This is OK. Explicit recursion has been replaced with `induction`.
 
-def tt_bb {xs ys zs} (bxs : Bar xs) (bys : Bar ys) (t : T2 xs ys zs) : Bar zs := by
+theorem tt_bb {xs ys zs} (bxs : Bar xs) (bys : Bar ys) (t : T2 xs ys zs) : Bar zs := by
   induction bxs generalizing ys zs bys with
   | now nx => exact now $ good_t0 t nx
   | @later xs' lx hx =>
@@ -275,7 +329,7 @@ def tt_bb {xs ys zs} (bxs : Bar xs) (bys : Bar ys) (t : T2 xs ys zs) : Bar zs :=
 -- Proof idea: Induction on Bar ws, then induction on first word following ws
 --
 
-def bar_lift (c ws : _) (b : Bar ws) : Bar (c ::* ws) := by
+theorem bar_lift (c ws : _) (b : Bar ws) : Bar (c ::* ws) := by
   induction b with
   | @now ws n => exact now $ good_drop n
   | @later ws' l ihl =>
@@ -302,19 +356,19 @@ def bar_lift (c ws : _) (b : Bar ws) : Bar (c ::* ws) := by
 -- higman: Main theorem
 --
 
-def later_empty :  (w : Word) -> Bar (w :: [])
+theorem later_empty :  (w : Word) -> Bar (w :: [])
   | [] => bar_w_empty []
   | c :: w =>
       bar_lift c (w :: []) (later_empty w)
 
-def bar_empty : Bar [] :=
+theorem bar_empty : Bar [] :=
   later later_empty
 
-def bar_ne (w ws : _) : Bar ws -> Bar (w :: ws)
+theorem bar_ne (w ws : _) : Bar ws -> Bar (w :: ws)
   | now n => now (there n)
   | later l => l w
 
-def higman : (ws : WSeq) -> Bar ws
+theorem higman : (ws : WSeq) -> Bar ws
   | [] => bar_empty
   | (w :: ws) => bar_ne w ws (higman ws)
 
@@ -327,7 +381,7 @@ inductive Prefix (f : Nat -> Word) : Nat -> WSeq -> Prop where
   | ps {i xs} : Prefix f i xs -> Prefix f (i + 1) (f i :: xs)
 open Prefix
 
-def good_prefix' (f : Nat -> Word)
+theorem good_prefix' (f : Nat -> Word)
     (i ws : _) (p : Prefix f i ws) (b : Bar ws) :
     (∃ i' xs', Prefix f i' xs' ∧ Good xs') := by
   induction b generalizing i with
@@ -338,6 +392,6 @@ def good_prefix' (f : Nat -> Word)
 
 -- Finding good prefixes of infinite sequences
 
-def good_prefix (f : Nat -> Word) :
+theorem good_prefix (f : Nat -> Word) :
       (∃ i xs, Prefix f i xs ∧ Good xs) :=
   good_prefix' f 0 [] pz bar_empty
