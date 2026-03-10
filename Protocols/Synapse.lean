@@ -52,6 +52,8 @@ theorem  valid : {s : State} -> Reachable s -> Unsafe s -> False :=
 -- A direct proof, which is mysterious...
 --
 
-theorem valid' {s : State} (r : Reachable s) (u : Unsafe s) : False := by
-  -- cases r <;> cases u
+example {s : State} (r : Reachable s) (u : Unsafe s) : False := by
+  cases r <;> cases u
+
+example {s : State} (r : Reachable s) (u : Unsafe s) : False := by
   aesop

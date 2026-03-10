@@ -7,6 +7,7 @@ import Aesop
 
 abbrev State := Nat × Nat × Nat
 
+@[aesop unsafe [cases]]
 inductive Reachable : State -> Prop where
   | start {out} : Reachable (out, 0, 0)
   | t1 {out} : Reachable (out + 1, 0, 0) -> Reachable (out, 1, 0)
@@ -51,6 +52,6 @@ theorem valid {s : State} : Reachable s -> Unsafe s -> False :=
 -- A direct proof, which is mysterious...
 --
 
-theorem valid' {s : State} (r : Reachable s) (u : Unsafe s) : False := by
+example {s : State} (r : Reachable s) (u : Unsafe s) : False := by
   induction r <;> cases u <;>
     · rename_i h; apply h; constructor

@@ -7,6 +7,7 @@ import Aesop
 
 abbrev State := Nat × Nat × Nat × Nat × Nat
 
+@[aesop unsafe [cases]]
 inductive Reachable : State -> Prop where
   | start {i} : Reachable (i, 0, 0, 0, 0)
   | t1 {i m s e o'} : Reachable (i + 1, m, s, e, o') ->
@@ -71,7 +72,7 @@ valid' (t2 r) u4 = valid' r u2
 valid' (t2 r) u5 = valid' r u5
  -/
 
-theorem valid'{s : State} (r : Reachable s) (u : Unsafe s) : False := by
+example {s : State} (r : Reachable s) (u : Unsafe s) : False := by
   induction r with
   | t2 r' h' =>
       apply h'
@@ -80,5 +81,5 @@ theorem valid'{s : State} (r : Reachable s) (u : Unsafe s) : False := by
       | _ => cases u
   | _ => cases u
 
-theorem valid'' {s : State} (r : Reachable s) (u : Unsafe s) : False := by
+example {s : State} (r : Reachable s) (u : Unsafe s) : False := by
   induction r <;> cases u <;> rename_i r' h' <;> cases r' <;> exact h' u2
