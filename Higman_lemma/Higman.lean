@@ -20,6 +20,8 @@ import Aesop
 inductive Letter : Type where
   | l0 : Letter
   | l1 : Letter
+deriving BEq
+
 open Letter
 
 abbrev Word := List Letter
@@ -30,7 +32,7 @@ abbrev Word := List Letter
 -- For example,
 --   l1 :: l0 :: l1 :: [] ⊴ l0 :: l1 :: l0 :: l0 :: l1 :: []
 
-@[aesop unsafe [constructors, cases, apply]]
+@[aesop unsafe [constructors, cases]]
 inductive «<<» : (v w : Word) -> Prop where
   | empty : «<<» [] []
   | drop {v w a}  : «<<» v w -> «<<» v (a :: w)
@@ -44,7 +46,6 @@ example : l1 :: l0 :: l1 :: [] << l0 :: l1 :: l0 :: l0 :: l1 :: [] :=
   drop $ keep $ drop $ keep $ keep empty
 
 -- [] is embeddable in any word.
-
 
 @[simp]
 theorem emb_empty : (w : Word) -> [] << w
@@ -376,22 +377,22 @@ theorem higman : (ws : WSeq) -> Bar ws
 -- good-prefix-lemma
 --
 
-inductive Prefix (f : Nat -> Word) : Nat -> WSeq -> Prop where
-  | pz : Prefix f 0 []
-  | ps {i xs} : Prefix f i xs -> Prefix f (i + 1) (f i :: xs)
-open Prefix
+inductive IsPrefix (f : Nat -> Word) : WSeq -> Prop where
+  | pz : IsPrefix f []
+  | ps {xs} : IsPrefix f xs -> IsPrefix f (f xs.length :: xs)
+open IsPrefix
 
-theorem good_prefix' (f : Nat -> Word)
-    (i ws : _) (p : Prefix f i ws) (b : Bar ws) :
-    (∃ i' xs', Prefix f i' xs' ∧ Good xs') := by
-  induction b generalizing i with
+theorem goodPrefix' (f : Nat -> Word)
+    {ws} (p : IsPrefix f ws) (b : Bar ws) :
+    (∃ xs', IsPrefix f xs' ∧ Good xs') := by
+  match b with
   | @now ws' n =>
-      exact ⟨i, ws', p, n⟩
-  | later l ih =>
-      apply ih (f i) (i + 1) (ps p)
+      exact ⟨ws', p, n⟩
+  | @later ws' l =>
+      exact goodPrefix' f (ps p) (l (f ws'.length))
 
 -- Finding good prefixes of infinite sequences
 
-theorem good_prefix (f : Nat -> Word) :
-      (∃ i xs, Prefix f i xs ∧ Good xs) :=
-  good_prefix' f 0 [] pz bar_empty
+theorem goodPrefix (f : Nat -> Word) :
+      (∃ xs, IsPrefix f xs ∧ Good xs) :=
+  goodPrefix' f pz bar_empty

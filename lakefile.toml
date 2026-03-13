@@ -19,6 +19,9 @@ name = "Lean4Samples"
 name = "StackMachine"
 srcDir = "SmallStep"
 
+[[lean_lib]]
+name = "Higman"
+srcDir = "Higman_lemma"
 
 [[lean_exe]]
 name = "lean4-samples"
