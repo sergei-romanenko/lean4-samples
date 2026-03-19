@@ -1,5 +1,9 @@
+--
 -- Induction
+--
+
 import Batteries
+import Aesop
 
 -- Induction by data
 
@@ -27,6 +31,7 @@ theorem ind_nat_by {P : Nat -> Prop}
 
 namespace IndEven
 
+@[aesop unsafe [constructors, cases]]
 inductive Even : Nat -> Prop where
   | even0 : Even 0
   | even2 : {k : Nat} -> Even k -> Even (k + 2)
@@ -71,9 +76,6 @@ def ev2n : (n : Nat) → Even (n + n)
           := by rw [Nat.succ_add]
       Eq.subst (Eq.symm eq) (even2 ev2n_n)
 
-def impl (p q : Prop) : Prop :=
-  p -> q
-
 def ev2n_chain : (n : Nat) -> Even (n + n) := fun
   | .zero =>
       have : Even .zero := even0
@@ -88,27 +90,43 @@ def ev2n_chain : (n : Nat) -> Even (n + n) := fun
       show Even (n.succ + n.succ) from
         this
 
-instance impTrans : Trans impl impl impl where
-  trans pq qr := fun p => qr (pq p)
+def «⇒» (p q : Prop) : Prop :=
+  p -> q
 
-infixr:20 " ~~> " => impl
+instance impTrans : Trans «⇒» «⇒» «⇒» where
+  trans pq qr := qr ∘ pq
 
-example {p q r} (h1 : p -> q) (h2 : q -> r) : p -> r :=
-  calc p
-  _ ~~> r := by
-    intro hp
-    exact h2 (h1 hp)
+infixr:20 " ⇒ " => «⇒»
+
+example {p q r} (h1 : p -> q) (h2 : q -> r) : p -> r := calc
+      p
+  _ ⇒ q := h1
+  _ ⇒ r := h2
 
 def ev2n_calc : (n : Nat) -> Even (n + n)
   | 0 => even0
-  | n + 1 => ev2n_calc n |>
-      calc Even (n + n)
-      _ ~~> Even ((n + n).succ.succ)
-        := even2
-      _ ~~> Even ((n.succ + n).succ)
-        := Eq.subst (by rw [Nat.succ_add])
-      _ ~~> Even (n.succ + n.succ)
-        := id
+  | n + 1 => ev2n_calc n |> calc
+          Even (n + n)
+      _ ⇒ Even ((n + n).succ.succ)  := even2
+      _ ⇒ Even ((n + n.succ).succ)  := id
+      _ ⇒ Even ((n.succ + n.succ))  := Eq.subst $ Eq.symm $ Nat.succ_add n n.succ
+
+def ev2n_ind : (n : Nat) -> Even (n + n) := by
+  intro n
+  induction n with
+  | zero =>
+      show Even (0 + 0)
+      show Even 0
+      exact even0
+  | succ n ev_nn =>
+      show Even (n + 1 + (n + 1))
+      show Even (n + 1 + n + 1)
+      rw [Nat.succ_add]
+      show Even (n + n + 1 + 1)
+      show Even ((n + n) + 2)
+      apply even2
+      show Even (n + n)
+      exact ev_nn
 
 end IndEven
 
