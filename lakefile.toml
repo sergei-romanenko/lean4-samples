@@ -23,6 +23,10 @@ srcDir = "SmallStep"
 name = "Higman"
 srcDir = "Higman_lemma"
 
+[[lean_lib]]
+name = "AlmostFull"
+srcDir = "AlmostFull"
+
 [[lean_exe]]
 name = "lean4-samples"
 root = "Main"
