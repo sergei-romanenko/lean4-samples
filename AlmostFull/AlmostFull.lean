@@ -19,28 +19,26 @@ theorem af_strengthen
     (a2b : ∀ x y, A x y -> B x y) : AlmostFull B
   :=
   match p with
-  | now ha => now fun x y => a2b x y (ha x y)
+  | now ha =>
+      now fun x y => a2b x y (ha x y)
   | later h =>
       later $
       fun u =>
       af_strengthen (h u) (
-        fun x y =>
-        fun
+        fun x y => fun
         | .inl axy => Or.inl (a2b x y axy)
         | .inr azx => Or.inr (a2b u x azx))
 
 example
-   {X : Type} {A : X -> X -> Prop} (p : AlmostFull A) {B : X -> X -> Prop}
+   {X : Type} {A B : X -> X -> Prop} (p : AlmostFull A)
     (hab : ∀ x y, A x y -> B x y) : AlmostFull B
   := by
-  induction p generalizing B with
-  | now _ => aesop
-  | later _ _ => aesop
+  induction p generalizing B <;> aesop
 
--- SecureBy implies that every infinite chain has two related elements
+-- AlmostFull implies that every infinite chain has two related elements
 
 theorem sec_binary_infinite_chain
-    {X : Type} (R : X -> X -> Prop) (f : Nat -> X) (p : AlmostFull R) (k : Nat) :
+    {X : Type} {R : X -> X -> Prop} (p : AlmostFull R) (f : Nat -> X) (k : Nat) :
     ∃ m n, k ≤ m ∧ m < n ∧ R (f m) (f n)
   := by
   induction p generalizing k with
@@ -65,11 +63,11 @@ theorem sec_binary_infinite_chain
           simp
           exists m
 
-theorem af_inf_chain (X : Type) (R : X -> X -> Prop) (p : AlmostFull R)
+theorem af_inf_chain {X : Type} {R : X -> X -> Prop} (p : AlmostFull R)
     (f : Nat -> X):  ∃ m n, m < n ∧ R (f m) (f n)
   := by
   have : ∃ m n, 0 ≤ m ∧ m < n ∧ R (f m) (f n) := by
-    apply sec_binary_infinite_chain R f p 0
+    apply sec_binary_infinite_chain p f 0
   simp at this
   exact this
 
@@ -100,7 +98,7 @@ theorem af_iter {X : Type} {R : X -> X -> Prop}
       intro _ _
       exact (Or.elim · (Or.inr ∘ Or.inr) (Or.inl ∘ Or.inr))
 
-theorem af_from_wf (X : Type) (R : X -> X -> Prop)
+theorem af_from_wf {X : Type} {R : X -> X -> Prop}
         (w : WellFounded R) (d : DecidableRel R) : AlmostFull (fun x y => ¬ R y x)
     :=
     later fun u =>
@@ -119,20 +117,23 @@ inductive ReflTransGen (r : α → α → Prop) (a : α) : α → Prop
 
 
 @[simp]
-theorem trans_clos_left {X} (T : X -> X -> Prop) (z y z0 : X)
-      (tzy : T z y) (tg : ReflTransGen T z0 z) : ReflTransGen T z0 y
+theorem trans_step {X} {T : X -> X -> Prop} {x y u : X}
+      (gtxu : ReflTransGen T x u) (tuy: T u y) : Relation.TransGen T x y
   :=
-  ReflTransGen.tail tg tzy
+  match gtxu with
+  | .refl => Relation.TransGen.single tuy
+  | .tail gtxu' tu'u =>
+      have txu : Relation.TransGen T x u := trans_step gtxu' tu'u
+      Relation.TransGen.tail txu tuy
 
-@[simp]
-theorem trans_clos_left_1 {X} (T : X -> X -> Prop) {z y z0 : X}
-      (tzy: T z y) (tg : ReflTransGen T z0 z) : Relation.TransGen T z0 y
-  :=
-  match tg with
-  | .refl => Relation.TransGen.single tzy
-  | .tail tg' tbz =>
-      have : Relation.TransGen T z0 z := trans_clos_left_1 T tbz tg'
-      Relation.TransGen.tail this tzy
+local add_aesop_rules unsafe [Relation.TransGen]
+
+/-
+example {X} {T : X -> X -> Prop} {x y u : X}
+      (gtxu : ReflTransGen T x u) (tuy: T u y) : Relation.TransGen T x y
+  := by
+  induction gtxu generalizing y <;> aesop
+ -/
 
 @[simp]
 theorem acc_from_af
@@ -157,7 +158,7 @@ theorem acc_from_af
       | inl ryu =>
           exact h u y (ReflTransGen.tail tyz tzx) tuy ryu
       | inr rxy =>
-          exact h y x ReflTransGen.refl (trans_clos_left_1 T tzx tyz) rxy
+          exact h y x ReflTransGen.refl (trans_step tyz tzx) rxy
 
 theorem wf_from_af (X : Type) (R : X -> X -> Prop) (p : AlmostFull R)
       (T : X -> X -> Prop)
