@@ -66,8 +66,10 @@ theorem sec_binary_infinite_chain
 theorem af_inf_chain {X : Type} {R : X -> X -> Prop} (p : AlmostFull R)
     (f : Nat -> X):  ∃ m n, m < n ∧ R (f m) (f n)
   := by
+
   have : ∃ m n, 0 ≤ m ∧ m < n ∧ R (f m) (f n) := by
     apply sec_binary_infinite_chain p f 0
+  show ∃ m n, m < n ∧ R (f m) (f n)
   simp at this
   exact this
 
@@ -111,29 +113,28 @@ theorem af_from_wf {X : Type} {R : X -> X -> Prop}
 --
 
 @[aesop unsafe [constructors, cases]]
-inductive ReflTransGen (r : α → α → Prop) (a : α) : α → Prop
+inductive ReflTransGen (r : α -> α -> Prop) (a : α) : α -> Prop
   | refl : ReflTransGen r a a
-  | tail {b c} : ReflTransGen r a b → r b c → ReflTransGen r a c
-
-
-@[simp]
-theorem trans_step {X} {T : X -> X -> Prop} {x y u : X}
-      (gtxu : ReflTransGen T x u) (tuy: T u y) : Relation.TransGen T x y
-  :=
-  match gtxu with
-  | .refl => Relation.TransGen.single tuy
-  | .tail gtxu' tu'u =>
-      have txu : Relation.TransGen T x u := trans_step gtxu' tu'u
-      Relation.TransGen.tail txu tuy
+  | tail {b} : Relation.TransGen r a b -> ReflTransGen r a b
 
 local add_aesop_rules unsafe [Relation.TransGen]
 
-/-
-example {X} {T : X -> X -> Prop} {x y u : X}
-      (gtxu : ReflTransGen T x u) (tuy: T u y) : Relation.TransGen T x y
-  := by
-  induction gtxu generalizing y <;> aesop
- -/
+@[simp]
+theorem rtt_t_tt {X} {T : X -> X -> Prop} {x y u : X}
+      (rttxu : ReflTransGen T x u) (tuy: T u y) : Relation.TransGen T x y
+  :=
+  match rttxu with
+  | .refl => Relation.TransGen.single tuy
+  | .tail ttxu => Relation.TransGen.tail ttxu tuy
+
+@[simp]
+theorem rtt_t_rtt {X} {T : X -> X -> Prop} {x y u : X}
+      (rttxu : ReflTransGen T x u) (tuy: T u y) : ReflTransGen T x y
+  :=
+  ReflTransGen.tail $
+  match rttxu with
+  | .refl => Relation.TransGen.single tuy
+  | .tail ttxu => Relation.TransGen.tail ttxu tuy
 
 @[simp]
 theorem acc_from_af
@@ -145,20 +146,22 @@ theorem acc_from_af
   induction p generalizing x with
   | @now R' n =>
       apply Acc.intro
-      intro z t
+      intro z tzx
       apply False.elim
-      apply h z x ReflTransGen.refl (Relation.TransGen.single t) (n x z)
+      apply h z x ReflTransGen.refl (Relation.TransGen.single tzx) (n x z)
   | @later R' l l_ih =>
       apply Acc.intro
       intro z tzx
       apply l_ih x z
-      intro u y tyz tuy rr
+      intro u y rttyz ttuy rr
       simp_all
       cases rr with
       | inl ryu =>
-          exact h u y (ReflTransGen.tail tyz tzx) tuy ryu
+          have rttyx : ReflTransGen T y x := rtt_t_rtt rttyz tzx
+          apply h u y rttyx ttuy ryu
       | inr rxy =>
-          exact h y x ReflTransGen.refl (trans_step tyz tzx) rxy
+          have rttyx: Relation.TransGen T y x := rtt_t_tt rttyz tzx
+          exact h y x ReflTransGen.refl rttyx rxy
 
 theorem wf_from_af (X : Type) (R : X -> X -> Prop) (p : AlmostFull R)
       (T : X -> X -> Prop)
@@ -168,9 +171,8 @@ theorem wf_from_af (X : Type) (R : X -> X -> Prop) (p : AlmostFull R)
   apply WellFounded.intro
   intro y
   apply acc_from_af p T
-  intro x z tzy tr
-  apply h x z
-  exact tr
+  intro x z rttzy ttxz
+  exact h x z ttxz
 
 --
 -- A reassuring lemma
