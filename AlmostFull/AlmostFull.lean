@@ -1,3 +1,23 @@
+/-
+  Title:      AlmostFull.lean
+  Author:     Sergei Romanenko, KIAM Moscow
+
+  This Agda version is based on
+
+  Vytiniotis, Dimitrios; Coquand, Thierry; Wahlstedt, David.
+  Stop when you are almost-full.
+  Adventures in constructive termination.
+  Beringer, Lennart (ed.) et al., Interactive theorem proving.
+  Third international conference, ITP 2012,
+  Princeton, NJ, USA, August 13‒15, 2012. Proceedings.
+  Berlin: Springer (ISBN 978-3-642-32346-1/pbk).
+  Lecture Notes in Computer Science 7406, 250-265 (2012).
+
+  http://research.microsoft.com/en-us/people/dimitris/af-itp.pdf
+  http://research.microsoft.com/en-us/people/dimitris/af-itp2012.tgz
+  http://research.microsoft.com/en-us/people/dimitris/afchalmers.pptx
+-/
+
 import Batteries
 import Aesop
 
@@ -6,15 +26,16 @@ import Aesop
 --
 
 @[aesop unsafe [constructors, cases]]
-inductive AlmostFull {X : Type} : (X -> X -> Prop) -> Prop where
+inductive AlmostFull {X : Type} : (X -> X -> Prop) -> Type where
   | now : {R : X -> X -> Prop} ->
      (n : ∀ x y, R x y) -> AlmostFull R
   | later : {R : X -> X -> Prop} ->
      (l : ∀ u, AlmostFull (fun x y => R x y ∨ R u x)) -> AlmostFull R
 open AlmostFull
 
-@[simp]
-theorem af_strengthen
+-- AlmostFull A -> AlmostFull B
+
+def af_strengthen
    {X : Type} {A B : X -> X -> Prop} (p : AlmostFull A)
     (a2b : ∀ x y, A x y -> B x y) : AlmostFull B
   :=
@@ -29,13 +50,9 @@ theorem af_strengthen
         | .inl axy => Or.inl (a2b x y axy)
         | .inr azx => Or.inr (a2b u x azx))
 
-example
-   {X : Type} {A B : X -> X -> Prop} (p : AlmostFull A)
-    (hab : ∀ x y, A x y -> B x y) : AlmostFull B
-  := by
-  induction p generalizing B <;> aesop
-
+--
 -- AlmostFull implies that every infinite chain has two related elements
+--
 
 theorem sec_binary_infinite_chain
     {X : Type} {R : X -> X -> Prop} (p : AlmostFull R) (f : Nat -> X) (k : Nat) :
@@ -66,7 +83,6 @@ theorem sec_binary_infinite_chain
 theorem af_inf_chain {X : Type} {R : X -> X -> Prop} (p : AlmostFull R)
     (f : Nat -> X):  ∃ m n, m < n ∧ R (f m) (f n)
   := by
-
   have : ∃ m n, 0 ≤ m ∧ m < n ∧ R (f m) (f n) := by
     apply sec_binary_infinite_chain p f 0
   show ∃ m n, m < n ∧ R (f m) (f n)
@@ -79,7 +95,7 @@ theorem af_inf_chain {X : Type} {R : X -> X -> Prop} (p : AlmostFull R)
 
 -- Generalization to an arbitrary decidable well-founded relation
 
-theorem af_iter {X : Type} {R : X -> X -> Prop}
+def af_iter {X : Type} {R : X -> X -> Prop}
     (decR : DecidableRel R) (z : X) (accX : Acc R z) :
     AlmostFull (fun x y => ¬ R x z ∨ ¬ R y x)
   := by
@@ -91,16 +107,20 @@ theorem af_iter {X : Type} {R : X -> X -> Prop}
   | .isFalse nrux =>
       apply now
       --aesop
-      intro _ _
+      intro x' y'
+      show (¬R x' x ∨ ¬R y' x') ∨ (¬R u x ∨ ¬R x' u)
       exact (Or.inr ∘ Or.inl) nrux
   | .isTrue rux =>
       have af_R' := ih u rux
       apply af_strengthen af_R'
       --aesop
-      intro _ _
+      intro x' y'
+      show ¬R x' u ∨ ¬R y' x' -> (¬R x' x ∨ ¬R y' x') ∨ (¬R u x ∨ ¬R x' u)
       exact (Or.elim · (Or.inr ∘ Or.inr) (Or.inl ∘ Or.inr))
 
-theorem af_from_wf {X : Type} {R : X -> X -> Prop}
+-- WellFounded R -> AlmostFull
+
+def af_from_wf {X : Type} {R : X -> X -> Prop}
         (w : WellFounded R) (d : DecidableRel R) : AlmostFull (fun x y => ¬ R y x)
     :=
     later fun u =>
@@ -207,3 +227,88 @@ theorem wf_from_wqo (X : Type) (R : X -> X -> Prop)
 
   apply wf_from_af X R p P
   apply get_false
+
+
+--
+-- Well-founded trees
+--
+
+inductive WFT (X  :  Type) : Type where
+  | zt  : WFT X
+  | sup : (g : X -> WFT X) -> WFT X
+open WFT
+
+-- SecureBy
+
+def SecureBy {X : Type} (R : X -> X -> Prop) (p : WFT X) : Prop :=
+ match p with
+  | zt => ∀ x y, R x y
+  | sup p =>
+      ∀ u, SecureBy (fun x y => R x y ∨ R u x) (p u)
+
+@[simp]
+theorem rw_zt (X : Type) (A : X -> X -> Prop) :
+    SecureBy A zt = ∀ x y, A x y
+  := rfl
+
+@[simp]
+theorem rw_sup (X : Type) (A : X -> X -> Prop) (f : X -> WFT X) :
+    SecureBy A (sup f) =
+    ∀ u, SecureBy (fun x y => A x y ∨ A u x) (f u)
+  := by rfl
+
+-- AlmostFullT
+
+@[simp]
+def AlmostFullT {X : Type} (R : X -> X -> Prop) :=
+  {p // SecureBy R p}
+
+-- AlmostFullT R : AlmostFull R
+
+def aft_to_af' {X : Type} {R : X -> X -> Prop} :
+      (p : WFT X) -> (s : SecureBy R p) -> AlmostFull R
+  | zt, s =>
+      AlmostFull.now s
+  | sup g, s =>
+      AlmostFull.later
+      fun u => aft_to_af' (g u) (s u)
+
+def aft_to_af {X : Type} {R : X -> X -> Prop}
+      (p : AlmostFullT R) : AlmostFull R
+  := aft_to_af' p.val p.property
+
+-- AlmostFull R -> AlmostFullT R
+
+def af_to_aft {X : Type} {R : X -> X -> Prop} : AlmostFull R -> AlmostFullT R
+  | now n => ⟨zt, n⟩
+  | later l =>
+      have step := fun u => af_to_aft (l u)
+      ⟨ sup fun u => (step u).val, fun u => (step u).property ⟩
+
+-- AlmostFull R -> WFT X
+
+def wft_from_af {X : Type} {R : X -> X -> Prop} :
+      AlmostFull R -> WFT X
+  | now _ => zt
+  | later l => sup (fun u => wft_from_af (l u))
+
+-- AlmostFull R -> SecureBy R
+
+def af_to_sec {X : Type} {R : X -> X -> Prop} :
+      (p : AlmostFull R) -> SecureBy R (wft_from_af p)
+  | now n => n
+  | later l => fun u => af_to_sec (l u)
+
+-- SecureBy A -> SecureBy B
+
+def sec_strengthen {X : Type} {A B : X -> X -> Prop}
+  (t : WFT X) (sa : SecureBy A t) (ab: ∀ x y, A x y → B x y) :
+      SecureBy B t :=
+  match t with
+  | zt => fun x y => ab x y (sa x y)
+  | sup g =>
+      fun u =>
+      show SecureBy (fun x y => B x y ∨ B u x) (g u) from
+      sec_strengthen (g u) (sa u) (fun x y =>
+        show A x y ∨ A u x → B x y ∨ B u x from
+        (Or.elim · (Or.inl ∘ ab x y) (Or.inr ∘ ab u x)))
