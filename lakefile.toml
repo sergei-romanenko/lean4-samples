@@ -27,6 +27,10 @@ srcDir = "Higman_lemma"
 name = "AlmostFull"
 srcDir = "AlmostFull"
 
+[[lean_lib]]
+name = "Sqrt2Irr"
+# srcDir = "Sqrt2Irr"
+
 [[lean_exe]]
 name = "lean4-samples"
 root = "Main"
