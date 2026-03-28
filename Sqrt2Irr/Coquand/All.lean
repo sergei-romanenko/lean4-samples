@@ -10,12 +10,12 @@ import Sqrt2Irr.Coquand.Cancellative
 import Sqrt2Irr.Coquand.Theorem
 
 -- Some properties of ℕ
--- import Coquand.TwoDivides
+import Sqrt2Irr.Coquand.TwoDivides
 
 -- A set of natural numbers without zero.
--- import Coquand.NatPlus
+-- import Sqrt2Irr.Coquand.NatPlus
 
 -- The set of the natural numbers without zero and with multiplication
 -- forms a cancellative abelian modoid.
 -- Thus, the square root of two is irrational.
--- import Coquand.Corollary
+-- import Sqrt2Irr.Coquand.Corollary
