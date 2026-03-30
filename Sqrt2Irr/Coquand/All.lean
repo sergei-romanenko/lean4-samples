@@ -1,5 +1,5 @@
 -- Some general stuff
--- import Sqrt2Irr.Coquand.Misc
+import Sqrt2Irr.Coquand.Misc
 
 -- The definition of cancellative abelian monoid.
 import Sqrt2Irr.Coquand.Cancellative
@@ -13,9 +13,9 @@ import Sqrt2Irr.Coquand.Theorem
 import Sqrt2Irr.Coquand.TwoDivides
 
 -- A set of natural numbers without zero.
--- import Sqrt2Irr.Coquand.NatPlus
+import Sqrt2Irr.Coquand.PNat
 
 -- The set of the natural numbers without zero and with multiplication
 -- forms a cancellative abelian modoid.
 -- Thus, the square root of two is irrational.
--- import Sqrt2Irr.Coquand.Corollary
+import Sqrt2Irr.Coquand.Corollary

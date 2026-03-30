@@ -1,3 +1,7 @@
+--
+-- Sqrt2Irr.Coquand.Theorem
+--
+
 /-
 The original proof was written by Thierry Coquand.
 http://www.cs.ru.nl/~freek/comparison/comparison.pdf

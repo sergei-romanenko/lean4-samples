@@ -1,3 +1,7 @@
+--
+-- Sqrt2Irr.Coquand.Cancellative
+--
+
 /-
 The original proof is written by Thierry Coquand.
 http://www.cs.ru.nl/~freek/comparison/comparison.pdf

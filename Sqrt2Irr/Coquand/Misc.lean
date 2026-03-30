@@ -1,5 +1,5 @@
 --
--- Implication reasoning
+-- Sqrt2Irr.Coquand.Misc
 --
 
 -- Reasoning by implication
