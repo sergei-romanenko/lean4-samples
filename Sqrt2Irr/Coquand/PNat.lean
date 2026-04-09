@@ -20,14 +20,14 @@ instance : Repr PNat :=
   ⟨fun n n' => reprPrec n.1 n'⟩
 
 def nz1 : PNat := ⟨1, Nat.one_pos⟩
-def nz2 : PNat := ⟨2, by exact Nat.zero_lt_two⟩
+def nz2 : PNat := ⟨2, Nat.zero_lt_two⟩
 
 def PNat.add : PNat -> PNat -> PNat
-  | ⟨a, pa⟩, ⟨b, pb⟩ =>
-      ⟨a + b, by exact Nat.add_pos_right a pb⟩
+  | ⟨a, _⟩, ⟨b, pb⟩ =>
+      ⟨a + b, Nat.add_pos_right a pb⟩
 
 def PNat.mul (m n : PNat) : PNat
-  := ⟨m.val * n.val, by exact Nat.mul_pos m.property n.property⟩
+  := ⟨m.val * n.val, Nat.mul_pos m.property n.property⟩
 
 theorem PNat.add_assoc (l c r : PNat) : ((l.add c).add r) = l.add (c.add r)
   := Subtype.ext (Nat.add_assoc l.val c.val r.val)

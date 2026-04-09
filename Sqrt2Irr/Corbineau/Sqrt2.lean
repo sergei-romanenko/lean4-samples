@@ -281,7 +281,7 @@ theorem descent (m p : Nat) (mm2pp : sq m = dbl (sq p)) : p = 0 :=
       dbl_inj (dbl_inj dbl2_sq_n_dbl3_sq_q)
 
     have q0 : q = 0 :=
-      have : div2 m < m := by exact div2_le m m0
+      have : div2 m < m := div2_le m m0
       descent n q ih
 
     have p0 : p = 0 := calc

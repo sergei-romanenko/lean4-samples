@@ -107,9 +107,9 @@ def ev2n_calc : (n : Nat) -> Even (n + n)
   | 0 => even0
   | n + 1 => ev2n_calc n |> calc
           Even (n + n)
-      _ ⇒ Even ((n + n).succ.succ)  := even2
-      _ ⇒ Even ((n + n.succ).succ)  := id
-      _ ⇒ Even ((n.succ + n.succ))  := Eq.subst $ Eq.symm $ Nat.succ_add n n.succ
+      _ ⇒ Even ((n + n) + 2)        := even2
+      _ = Even ((n + (n + 1)) + 1)  := rfl
+      _ = Even ((n + 1) + (n + 1))  := congrArg Even (Eq.symm $ Nat.succ_add n (n + 1))
 
 def ev2n_ind : (n : Nat) -> Even (n + n) := by
   intro n
@@ -119,8 +119,8 @@ def ev2n_ind : (n : Nat) -> Even (n + n) := by
       show Even 0
       exact even0
   | succ n ev_nn =>
-      show Even (n + 1 + (n + 1))
-      show Even (n + 1 + n + 1)
+      show Even ((n + 1) + (n + 1))
+      show Even ((n + 1) + n + 1)
       rw [Nat.succ_add]
       show Even (n + n + 1 + 1)
       show Even ((n + n) + 2)

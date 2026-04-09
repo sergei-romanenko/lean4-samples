@@ -72,7 +72,7 @@ def «?+m=n» (m n : Nat) (le : m ≤ n) : {x // x + m = n} :=
   | m' + 1, n' + 1 => --by
       have xp : {x' // x' + m' = n'} :=
         «?+m=n» m' n' (Nat.le_of_succ_le_succ le)
-      ⟨xp.val, by exact congrArg Nat.succ xp.property⟩
+      ⟨xp.val, congrArg Nat.succ xp.property⟩
 
 #guard («?+m=n» 1 3 (by simp only [Nat.reduceLeDiff])).val == 2
 

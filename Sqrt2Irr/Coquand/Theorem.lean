@@ -20,7 +20,7 @@ def Divides {α} [CAMonoid α] (x y : α) : Prop :=
 
 def Prime {α : Type} [CAMonoid α] (p : α) : Prop :=
   (x y : α) -> Divides p (x <.> y) ->
-  Divides p x ∨ Divides p y
+  (Divides p x) ∨ (Divides p y)
 
 def NotSquare {α : Type} [CAMonoid α] (p : α) : Prop :=
   (x y : α) -> p <.> (x <.> x) ≠ y <.> y
@@ -29,8 +29,8 @@ theorem p_sq {α : Type} [CAMonoid α](p x : α)
       (prime_p : Prime p) (p_xx : Divides p (x <.> x)) : Divides p x
   := by
   cases prime_p x x p_xx with
-  | inl p_x => exact p_x; done
-  | inr p_x => exact p_x; done
+  | inl p_x => exact p_x
+  | inr p_x => exact p_x
 
 section
 open CAMonoid

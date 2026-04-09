@@ -287,7 +287,7 @@ theorem good_t1 {xs ys zs} : T2 xs ys zs -> Good ys -> Good zs
 -- This is not accepted by Lean 4 (due to termination problems)...
 
 /-
-theorem tt_bb {xs ys zs} (bxs : Bar xs) (bys : Bar ys) (t : T2 xs ys zs) : Bar zs :=
+theorem tt_bb_rec {xs ys zs} (bxs : Bar xs) (bys : Bar ys) (t : T2 xs ys zs) : Bar zs :=
   match bxs, bys with
   | now nx, _ => now (good_t0 t nx)
   | later lx, now ny => now (good_t1 t ny)
@@ -296,11 +296,12 @@ theorem tt_bb {xs ys zs} (bxs : Bar xs) (bys : Bar ys) (t : T2 xs ys zs) : Bar z
       fun
       | [] => bar_w_empty zs
       | l0 :: w =>
-          @tt_bb (w :: xs) ys ((l0 :: w) :: zs)
-            (lx w) (later ly) (step0 t)
+          @tt_bb_rec (w :: xs) ys ((l0 :: w) :: zs)
+            (lx w) bys (step0 t)
       | l1 :: w =>
-          @tt_bb xs (w :: ys) ((l1 :: w) :: zs)
-            (later lx) (ly w) (step1 t)
+          @tt_bb_rec xs (w :: ys) ((l1 :: w) :: zs)
+            bxs (ly w) (step1 t)
+-- termination_by (bxs, bys)
  -/
 
 -- This is OK. Explicit recursion has been replaced with `induction`.
